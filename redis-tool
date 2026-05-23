@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""
+redis-tool - Redis Cluster Lifecycle Management CLI
+Wraps Ansible playbooks for provisioning, operations, and rolling upgrades.
+"""
+import sys
+import os
+import subprocess
+import json
+import argparse
+from datetime import datetime, timezone
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ANSIBLE_DIR = os.path.join(SCRIPT_DIR, "ansible")
+
+def log_event(command, status, metadata=None):
+    """Generates structured JSON execution audit trails."""
+    os.makedirs(os.path.join(SCRIPT_DIR, "logs"), exist_ok=True)
+    log_payload = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "command": command,
+        "status": status,
+        "metadata": metadata or {}
+    }
+    with open(os.path.join(SCRIPT_DIR, "logs/operation_log.json"), "a") as log_file:
+        log_file.write(json.dumps(log_payload) + "\n")
+
+def run_prerequisite_validation():
+    """Validates dependencies before executing commands."""
+    print("[*] Launching system environment prerequisites evaluation...")
+
+    runtime = None
+    for engine in ["podman", "docker"]:
+        try:
+            res = subprocess.run([engine, "--version"], capture_output=True, text=True, check=True)
+            print(f" [+] Found Runtime: {res.stdout.strip()}")
+            runtime = engine
+            break
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            continue
+
+    if not runtime:
+        print(" [X] Container runtime not found (Docker or Podman)")
+        print("     Install Podman: https://podman.io/docs/installation")
+        print("     Install Docker: https://docs.docker.com/engine/install/")
+        sys.exit(1)
+
+    try:
+        ans_res = subprocess.run(["ansible-playbook", "--version"], capture_output=True, text=True, check=True)
+        print(f" [+] Found Executable: {ans_res.stdout.splitlines()[0]}")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print(" [X] Ansible not found")
+        print("     Install: pip install ansible")
+        sys.exit(1)
+
+    print(" [*] Environment Verification Cleared. Proceeding to orchestration pipeline...\n")
+    return runtime
+
+def run_playbook(playbook, extra_vars=None):
+    """Execute an Ansible playbook."""
+    cmd = [
+        "ansible-playbook",
+        os.path.join(ANSIBLE_DIR, "playbooks", playbook),
+        "-i", os.path.join(ANSIBLE_DIR, "inventory", "hosts.ini"),
+    ]
+    if extra_vars:
+        for key, value in extra_vars.items():
+            cmd.extend(["-e", f"{key}={value}"])
+
+    env = os.environ.copy()
+    env["ANSIBLE_CONFIG"] = os.path.join(ANSIBLE_DIR, "ansible.cfg")
+    env["ANSIBLE_ROLES_PATH"] = os.path.join(ANSIBLE_DIR, "roles")
+
+    return subprocess.run(cmd, env=env, cwd=ANSIBLE_DIR)
+
+def handle_provision(args):
+    print(f"[*] Initializing Cluster Setup Pipeline targeting Version: {args.version}")
+    result = run_playbook("provision.yml", {"redis_version": args.version})
+    if result.returncode == 0:
+        log_event(f"provision {args.version}", "SUCCESS")
+        print("\n[+] Redis Cluster provisioned successfully!")
+    else:
+        log_event(f"provision {args.version}", "FAILED")
+        sys.exit(result.returncode)
+
+def handle_status(args):
+    print("[*] Querying Cluster Status...\n")
+    result = run_playbook("status.yml")
+    log_event("status", "SUCCESS" if result.returncode == 0 else "FAILED")
+
+def handle_data(args):
+    num_keys = args.keys if args.keys else 1000
+    if args.subcommand == "seed":
+        print(f"[*] Seeding {num_keys} keys into the cluster...\n")
+        result = run_playbook("seed.yml", {"num_keys": str(num_keys)})
+        if result.returncode == 0:
+            log_event(f"data seed --keys {num_keys}", "SUCCESS")
+            print("\n[+] Data seeding complete!")
+        else:
+            log_event(f"data seed --keys {num_keys}", "FAILED")
+            sys.exit(result.returncode)
+    elif args.subcommand == "verify":
+        print(f"[*] Verifying {num_keys} keys in the cluster...\n")
+        result = run_playbook("verify.yml", {"num_keys": str(num_keys)})
+        if result.returncode == 0:
+            log_event(f"data verify --keys {num_keys}", "SUCCESS")
+            print("\n[+] Data verification complete!")
+        else:
+            log_event(f"data verify --keys {num_keys}", "FAILED")
+            print("\n[X] Data verification reported issues.")
+
+def handle_upgrade(args):
+    print(f"[*] Triggering Rolling Upgrade targeting: {args.version}\n")
+    result = run_playbook("upgrade.yml", {"redis_version": args.version, "target_version": args.version})
+    if result.returncode == 0:
+        log_event(f"upgrade {args.version}", "SUCCESS")
+        print(f"\n[+] UPGRADE COMPLETE — all nodes on v{args.version}")
+    else:
+        log_event(f"upgrade {args.version}", "FAILED")
+        print("[X] Upgrade failed. Check logs.")
+        sys.exit(result.returncode)
+
+def handle_verify(args):
+    num_keys = args.keys if args.keys else 1000
+    if args.full:
+        print("[*] Running Full Cluster Verification...\n")
+        result = run_playbook("full_verify.yml", {"num_keys": str(num_keys)})
+        log_event("verify --full", "SUCCESS" if result.returncode == 0 else "FAILED")
+    else:
+        print("Use: ./redis-tool verify --full")
+        sys.exit(1)
+
+def main():
+    run_prerequisite_validation()
+
+    parser = argparse.ArgumentParser(description="Redis Cluster Lifecycle Management Tool")
+    subparsers = parser.add_subparsers(dest="command")
+
+    prov_p = subparsers.add_parser("provision", help="Provision Redis Cluster")
+    prov_p.add_argument("version", help="Redis version (e.g., 7.0.15)")
+
+    subparsers.add_parser("status", help="Show cluster status")
+
+    data_p = subparsers.add_parser("data", help="Data operations")
+    data_p.add_argument("subcommand", choices=["seed", "verify"])
+    data_p.add_argument("--keys", type=int, default=1000)
+
+    up_p = subparsers.add_parser("upgrade", help="Rolling upgrade")
+    up_p.add_argument("--version", required=True, help="Target version")
+
+    ver_p = subparsers.add_parser("verify", help="Full verification")
+    ver_p.add_argument("--full", action="store_true")
+    ver_p.add_argument("--keys", type=int, default=1000)
+
+    args = parser.parse_args()
+
+    if args.command == "provision":
+        handle_provision(args)
+    elif args.command == "status":
+        handle_status(args)
+    elif args.command == "data":
+        handle_data(args)
+    elif args.command == "upgrade":
+        handle_upgrade(args)
+    elif args.command == "verify":
+        handle_verify(args)
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()

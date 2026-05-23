@@ -1,0 +1,13 @@
+---
+- include_tasks: install.yml
+- include_tasks: configure.yml
+
+- name: Ensure Redis instance is running
+  ansible.builtin.shell: "pgrep redis-server"
+  register: redis_running
+  failed_when: false
+  changed_when: false
+
+- name: Initialize Redis Process if not running
+  ansible.builtin.shell: "redis-server {{ redis_conf_dir }}/redis.conf"
+  when: redis_running.rc != 0

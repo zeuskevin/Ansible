@@ -1,0 +1,219 @@
+
+PLAY [Phase 1 - Uniform Software Provisioning] *********************************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Host 'redis-node-5' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+[WARNING]: Host 'redis-node-4' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+[WARNING]: Host 'redis-node-1' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+[WARNING]: Host 'redis-node-3' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+[WARNING]: Host 'redis-node-2' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+[WARNING]: Host 'redis-node-6' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+ok: [redis-node-5]
+ok: [redis-node-4]
+ok: [redis-node-1]
+ok: [redis-node-3]
+ok: [redis-node-2]
+ok: [redis-node-6]
+
+TASK [redis : include_tasks] ***************************************************
+included: /home/Ansible/ansible/roles/redis/tasks/install.yml for redis-node-1, redis-node-2, redis-node-3, redis-node-4, redis-node-5, redis-node-6
+
+TASK [redis : Determine if target Redis version is already active] *************
+ok: [redis-node-4]
+ok: [redis-node-1]
+ok: [redis-node-5]
+ok: [redis-node-3]
+ok: [redis-node-2]
+ok: [redis-node-6]
+
+TASK [redis : Extract current version string if present] ***********************
+ok: [redis-node-1]
+ok: [redis-node-2]
+ok: [redis-node-3]
+ok: [redis-node-4]
+ok: [redis-node-5]
+ok: [redis-node-6]
+
+TASK [redis : Display version comparison] **************************************
+ok: [redis-node-1] => {
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+ok: [redis-node-2] => {
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+ok: [redis-node-3] => {
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+ok: [redis-node-4] => {
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+ok: [redis-node-5] => {
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+ok: [redis-node-6] => {
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+
+TASK [redis : Stop existing Redis if running] **********************************
+ok: [redis-node-3]
+ok: [redis-node-4]
+ok: [redis-node-1]
+ok: [redis-node-2]
+ok: [redis-node-5]
+ok: [redis-node-6]
+
+TASK [redis : Remove previous build directory to avoid conflicts] **************
+changed: [redis-node-3]
+changed: [redis-node-1]
+changed: [redis-node-2]
+changed: [redis-node-4]
+changed: [redis-node-5]
+changed: [redis-node-6]
+
+TASK [redis : Create fresh compilation directory] ******************************
+changed: [redis-node-4]
+changed: [redis-node-1]
+changed: [redis-node-3]
+changed: [redis-node-5]
+changed: [redis-node-2]
+changed: [redis-node-6]
+
+TASK [redis : Install build dependencies] **************************************
+ok: [redis-node-3]
+ok: [redis-node-4]
+ok: [redis-node-1]
+ok: [redis-node-5]
+ok: [redis-node-2]
+ok: [redis-node-6]
+
+TASK [redis : Download Redis source archive] ***********************************
+ok: [redis-node-4]
+ok: [redis-node-2]
+ok: [redis-node-5]
+ok: [redis-node-3]
+ok: [redis-node-1]
+ok: [redis-node-6]
+
+TASK [redis : Unpack source package] *******************************************
+changed: [redis-node-4]
+changed: [redis-node-3]
+changed: [redis-node-2]
+changed: [redis-node-1]
+changed: [redis-node-5]
+changed: [redis-node-6]
+
+TASK [redis : Compile Redis source binaries] ***********************************
+changed: [redis-node-1]
+changed: [redis-node-5]
+changed: [redis-node-4]
+changed: [redis-node-2]
+changed: [redis-node-3]
+changed: [redis-node-6]
+
+TASK [redis : Install Redis binaries to system path] ***************************
+changed: [redis-node-2]
+changed: [redis-node-5]
+changed: [redis-node-1]
+changed: [redis-node-4]
+changed: [redis-node-3]
+changed: [redis-node-6]
+
+TASK [redis : Verify Redis installation] ***************************************
+ok: [redis-node-4]
+ok: [redis-node-1]
+ok: [redis-node-3]
+ok: [redis-node-5]
+ok: [redis-node-2]
+ok: [redis-node-6]
+
+TASK [redis : Display installed version] ***************************************
+ok: [redis-node-1] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=86efca2d0953f3e4"
+}
+ok: [redis-node-2] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=ed4ab3a9fe6efb65"
+}
+ok: [redis-node-3] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=216ef6a49d0fd7d3"
+}
+ok: [redis-node-4] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=870628d4561fa983"
+}
+ok: [redis-node-5] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=124a79975dfe7dcf"
+}
+ok: [redis-node-6] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=dd806ecc95b55468"
+}
+
+TASK [redis : include_tasks] ***************************************************
+included: /home/Ansible/ansible/roles/redis/tasks/configure.yml for redis-node-1, redis-node-2, redis-node-3, redis-node-4, redis-node-5, redis-node-6
+
+TASK [redis : Ensure configuration and data directories exist] *****************
+ok: [redis-node-3] => (item=/etc/redis)
+ok: [redis-node-1] => (item=/etc/redis)
+ok: [redis-node-5] => (item=/etc/redis)
+ok: [redis-node-2] => (item=/etc/redis)
+ok: [redis-node-4] => (item=/etc/redis)
+ok: [redis-node-1] => (item=/var/lib/redis)
+ok: [redis-node-3] => (item=/var/lib/redis)
+ok: [redis-node-5] => (item=/var/lib/redis)
+ok: [redis-node-2] => (item=/var/lib/redis)
+ok: [redis-node-4] => (item=/var/lib/redis)
+ok: [redis-node-6] => (item=/etc/redis)
+ok: [redis-node-6] => (item=/var/lib/redis)
+
+TASK [redis : Provision Redis configuration layout] ****************************
+ok: [redis-node-1]
+ok: [redis-node-3]
+ok: [redis-node-2]
+ok: [redis-node-5]
+ok: [redis-node-4]
+ok: [redis-node-6]
+
+TASK [redis : Ensure Redis instance is running] ********************************
+ok: [redis-node-3]
+ok: [redis-node-1]
+ok: [redis-node-2]
+ok: [redis-node-5]
+ok: [redis-node-4]
+ok: [redis-node-6]
+
+TASK [redis : Initialize Redis Process if not running] *************************
+changed: [redis-node-1]
+changed: [redis-node-2]
+changed: [redis-node-5]
+changed: [redis-node-3]
+changed: [redis-node-4]
+changed: [redis-node-6]
+
+PLAY [Phase 2 - Cluster Formation Topology] ************************************
+
+TASK [Inspect if Cluster topology is already defined] **************************
+ok: [redis-node-1]
+
+TASK [Meet and Bind cluster if uninitialized] **********************************
+[ERROR]: Task failed: Module failed: non-zero return code
+Origin: /home/Ansible/ansible/playbooks/provision.yml:17:7
+
+15       changed_when: false
+16
+17     - name: Meet and Bind cluster if uninitialized
+         ^ column 7
+
+fatal: [redis-node-1]: FAILED! => {"changed": true, "cmd": ["redis-cli", "--cluster", "create", "10.10.0.11:6379", "10.10.0.12:6379", "10.10.0.13:6379", "10.10.0.14:6379", "10.10.0.15:6379", "10.10.0.16:6379", "--cluster-replicas", "1", "--cluster-yes"], "delta": "0:00:00.002832", "end": "2026-05-23 19:52:53.441780", "msg": "non-zero return code", "rc": 1, "start": "2026-05-23 19:52:53.438948", "stderr": "Could not connect to Redis at 10.10.0.11:6379: Connection refused", "stderr_lines": ["Could not connect to Redis at 10.10.0.11:6379: Connection refused"], "stdout": "", "stdout_lines": []}
+
+PLAY RECAP *********************************************************************
+redis-node-1               : ok=21   changed=6    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+redis-node-2               : ok=20   changed=6    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+redis-node-3               : ok=20   changed=6    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+redis-node-4               : ok=20   changed=6    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+redis-node-5               : ok=20   changed=6    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+redis-node-6               : ok=20   changed=6    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+[*] Launching system environment prerequisites evaluation...
+ [+] Found Runtime: Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2
+ [+] Found Executable: ansible-playbook [core 2.20.6]
+ [*] Environment Verification Cleared. Proceeding to orchestration pipeline...
+
+[*] Initializing Cluster Setup Pipeline targeting Version: 7.0.15

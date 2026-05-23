@@ -1,0 +1,16 @@
+---
+- name: Ensure configuration and data directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ redis_conf_dir }}"
+    - "/var/lib/redis"
+
+- name: Provision Redis configuration layout
+  ansible.builtin.template:
+    src: redis.conf.j2
+    dest: "{{ redis_conf_dir }}/redis.conf"
+    mode: '0644'
+  notify: Restart Redis Service

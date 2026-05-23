@@ -1,0 +1,102 @@
+---
+- name: Full Cluster Verification
+  hosts: redis-node-1
+  gather_facts: false
+  tasks:
+    - name: Run comprehensive health check
+      ansible.builtin.shell: |
+        python3 << 'PYTHON'
+        import subprocess
+        import hashlib
+        import sys
+
+        results = []
+
+        # Check 1: Cluster state
+        r = subprocess.run("redis-cli -h 10.10.0.11 -p 6379 cluster info", shell=True, capture_output=True, text=True)
+        if "cluster_state:ok" in r.stdout:
+            results.append("PASS: Cluster state is OK")
+        else:
+            results.append("FAIL: Cluster state is NOT OK")
+
+        # Check 2: Version consistency
+        versions = set()
+        for ip in ["10.10.0.11", "10.10.0.12", "10.10.0.13", "10.10.0.14", "10.10.0.15", "10.10.0.16"]:
+            r = subprocess.run(f"redis-cli -h {ip} -p 6379 INFO server", shell=True, capture_output=True, text=True)
+            for line in r.stdout.split('\n'):
+                if line.startswith('redis_version:'):
+                    versions.add(line.strip().split(':')[1].strip('\r'))
+        if len(versions) == 1:
+            results.append(f"PASS: All nodes on version {versions.pop()}")
+        else:
+            results.append(f"FAIL: Mixed versions detected: {versions}")
+
+        # Check 3: All 16384 slots covered
+        r = subprocess.run("redis-cli -h 10.10.0.11 -p 6379 cluster info", shell=True, capture_output=True, text=True)
+        for line in r.stdout.split('\n'):
+            if 'cluster_slots_ok' in line:
+                slots = int(line.strip().split(':')[1].strip('\r'))
+                if slots == 16384:
+                    results.append("PASS: All 16384 hash slots covered")
+                else:
+                    results.append(f"FAIL: Only {slots}/16384 slots covered")
+
+        # Check 4: Topology (masters + replicas)
+        r = subprocess.run("redis-cli -h 10.10.0.11 -p 6379 cluster nodes", shell=True, capture_output=True, text=True)
+        masters = [l for l in r.stdout.split('\n') if 'master' in l and l.strip()]
+        replicas_list = [l for l in r.stdout.split('\n') if 'slave' in l and l.strip()]
+        if len(masters) >= 3 and len(replicas_list) >= 3:
+            results.append(f"PASS: Topology healthy ({len(masters)} masters, {len(replicas_list)} replicas)")
+        else:
+            results.append(f"FAIL: Topology issue ({len(masters)} masters, {len(replicas_list)} replicas)")
+
+        # Check 5: Replication status
+        all_up = True
+        for ip in ["10.10.0.11", "10.10.0.12", "10.10.0.13", "10.10.0.14", "10.10.0.15", "10.10.0.16"]:
+            r = subprocess.run(f"redis-cli -h {ip} -p 6379 INFO replication", shell=True, capture_output=True, text=True)
+            if "role:slave" in r.stdout and "master_link_status:up" not in r.stdout:
+                all_up = False
+        if all_up:
+            results.append("PASS: All replicas have master_link_status:up")
+        else:
+            results.append("FAIL: Some replicas have replication issues")
+
+        # Check 6: Data integrity
+        total_keys = {{ num_keys | default(1000) }}
+        verified = 0
+        missing = 0
+        mismatched = 0
+        for i in range(1, total_keys + 1):
+            key = f"key:{i:04d}"
+            expected = hashlib.sha256(key.encode()).hexdigest()
+            r = subprocess.run(f"redis-cli -c -h 10.10.0.11 -p 6379 GET {key}", shell=True, capture_output=True, text=True)
+            actual = r.stdout.strip()
+            if actual == "" or actual == "(nil)":
+                missing += 1
+            elif actual != expected:
+                mismatched += 1
+            else:
+                verified += 1
+
+        if missing == 0 and mismatched == 0:
+            results.append(f"PASS: Data integrity — {verified}/{total_keys} keys verified")
+        else:
+            results.append(f"FAIL: Data integrity — {missing} missing, {mismatched} mismatched")
+
+        # Summary
+        print("=" * 60)
+        print("         FULL VERIFICATION REPORT")
+        print("=" * 60)
+        for r in results:
+            status = "[+]" if "PASS" in r else "[X]"
+            print(f"  {status} {r}")
+        print("=" * 60)
+        all_pass = all("PASS" in r for r in results)
+        print(f"OVERALL: {'ALL CHECKS PASSED' if all_pass else 'SOME CHECKS FAILED'}")
+        PYTHON
+      register: full_verify_output
+      changed_when: false
+
+    - name: Display full verification
+      ansible.builtin.debug:
+        msg: "{{ full_verify_output.stdout_lines }}"

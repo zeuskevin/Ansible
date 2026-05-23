@@ -1,0 +1,51 @@
+---
+- name: Redis Cluster Status Report
+  hosts: redis-node-1
+  gather_facts: false
+  tasks:
+    - name: Gather cluster status
+      ansible.builtin.shell: |
+        echo "============================================"
+        echo "        REDIS CLUSTER STATUS REPORT"
+        echo "============================================"
+        echo ""
+
+        # Cluster state
+        STATE=$(redis-cli -h 10.10.0.11 -p 6379 cluster info 2>/dev/null | grep cluster_state | tr -d '\r\n')
+        echo "Cluster State: ${STATE#cluster_state:}"
+        echo ""
+
+        # Get cluster nodes output
+        NODES=$(redis-cli -h 10.10.0.11 -p 6379 cluster nodes 2>/dev/null)
+
+        echo "MASTERS"
+        echo "$NODES" | grep "master" | while IFS= read -r line; do
+          IP_PORT=$(echo "$line" | awk '{print $2}' | cut -d'@' -f1)
+          IP=$(echo "$IP_PORT" | cut -d':' -f1)
+          SLOTS=$(echo "$line" | awk '{for(i=9;i<=NF;i++) printf $i" "}')
+          VERSION=$(redis-cli -h "$IP" -p 6379 INFO server 2>/dev/null | grep redis_version | tr -d '\r\n' | cut -d: -f2)
+          KEYS=$(redis-cli -h "$IP" -p 6379 DBSIZE 2>/dev/null | tr -d '\r\n' | grep -oP '\d+')
+          MEM=$(redis-cli -h "$IP" -p 6379 INFO memory 2>/dev/null | grep used_memory_human | tr -d '\r\n' | cut -d: -f2)
+          echo "  ${IP_PORT}  [master]  v${VERSION}  slots: ${SLOTS} keys: ${KEYS:-0}  mem: ${MEM}"
+        done
+
+        echo ""
+        echo "REPLICAS"
+        echo "$NODES" | grep "slave" | while IFS= read -r line; do
+          IP_PORT=$(echo "$line" | awk '{print $2}' | cut -d'@' -f1)
+          IP=$(echo "$IP_PORT" | cut -d':' -f1)
+          MASTER_ID=$(echo "$line" | awk '{print $4}')
+          MASTER_IP=$(echo "$NODES" | grep "$MASTER_ID" | grep "master" | awk '{print $2}' | cut -d'@' -f1)
+          VERSION=$(redis-cli -h "$IP" -p 6379 INFO server 2>/dev/null | grep redis_version | tr -d '\r\n' | cut -d: -f2)
+          MEM=$(redis-cli -h "$IP" -p 6379 INFO memory 2>/dev/null | grep used_memory_human | tr -d '\r\n' | cut -d: -f2)
+          echo "  ${IP_PORT}  [replica]  v${VERSION}  replicating: ${MASTER_IP}  mem: ${MEM}"
+        done
+
+        echo ""
+        echo "============================================"
+      register: status_output
+      changed_when: false
+
+    - name: Display status
+      ansible.builtin.debug:
+        msg: "{{ status_output.stdout_lines }}"

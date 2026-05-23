@@ -1,0 +1,31 @@
+---
+- name: Phase 1 - Uniform Software Provisioning
+  hosts: all_nodes
+  roles:
+    - redis
+
+- name: Phase 2 - Cluster Formation Topology
+  hosts: redis-node-1
+  gather_facts: false
+  tasks:
+    - name: Inspect if Cluster topology is already defined
+      ansible.builtin.command: redis-cli -p 6379 cluster info
+      register: cluster_state_raw
+      failed_when: false
+      changed_when: false
+
+    - name: Meet and Bind cluster if uninitialized
+      ansible.builtin.command: >
+        redis-cli --cluster create
+        10.10.0.11:6379 10.10.0.12:6379 10.10.0.13:6379
+        10.10.0.14:6379 10.10.0.15:6379 10.10.0.16:6379
+        --cluster-replicas 1 --cluster-yes
+      when: "'cluster_state:ok' not in cluster_state_raw.stdout"
+
+    - name: Output final cluster topology metadata
+      ansible.builtin.command: redis-cli -p 6379 cluster nodes
+      register: topology_output
+
+    - name: Display Topology
+      ansible.builtin.debug:
+        msg: "{{ topology_output.stdout_lines }}"

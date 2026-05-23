@@ -1,0 +1,44 @@
+---
+- name: Verify data integrity in Redis Cluster
+  hosts: redis-node-1
+  gather_facts: false
+  tasks:
+    - name: Verify all keys and values
+      ansible.builtin.shell: |
+        python3 << 'PYTHON'
+        import hashlib
+        import subprocess
+        import sys
+
+        total_keys = {{ num_keys | default(1000) }}
+        verified = 0
+        missing = 0
+        mismatched = 0
+
+        for i in range(1, total_keys + 1):
+            key = f"key:{i:04d}"
+            expected_value = hashlib.sha256(key.encode()).hexdigest()
+            cmd = f"redis-cli -c -h 10.10.0.11 -p 6379 GET {key}"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            actual_value = result.stdout.strip()
+
+            if actual_value == "" or actual_value == "(nil)":
+                missing += 1
+            elif actual_value != expected_value:
+                mismatched += 1
+            else:
+                verified += 1
+
+        if missing == 0 and mismatched == 0:
+            print(f"PASS — {verified}/{total_keys} keys verified")
+        else:
+            print(f"FAIL — {missing} keys missing, {mismatched} values mismatched, {verified} verified")
+
+        sys.exit(0)
+        PYTHON
+      register: verify_output
+      changed_when: false
+
+    - name: Display verification results
+      ansible.builtin.debug:
+        msg: "{{ verify_output.stdout_lines }}"

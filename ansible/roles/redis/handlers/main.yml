@@ -1,0 +1,7 @@
+---
+- name: Restart Redis Service
+  ansible.builtin.shell: |
+    pkill -9 redis-server || true
+    redis-server {{ redis_conf_dir }}/redis.conf
+  async: 10
+  poll: 2

@@ -1,0 +1,13 @@
+bind 0.0.0.0
+port {{ redis_port }}
+protected-mode no
+daemonize yes
+pidfile /var/run/redis_{{ redis_port }}.pid
+logfile /var/log/redis_{{ redis_port }}.log
+dir /var/lib/redis
+
+# Cluster Configurations
+cluster-enabled {{ redis_cluster_enabled }}
+cluster-config-file nodes_{{ redis_port }}.conf
+cluster-node-timeout {{ redis_cluster_node_timeout }}
+appendonly yes

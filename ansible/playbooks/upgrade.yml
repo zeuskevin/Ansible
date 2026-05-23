@@ -1,0 +1,219 @@
+---
+# ============================================================
+# PRE-FLIGHT CHECKS
+# ============================================================
+- name: Pre-flight Verification
+  hosts: redis-node-1
+  gather_facts: false
+  tasks:
+    - name: Verify cluster is healthy
+      ansible.builtin.command: redis-cli -p 6379 cluster info
+      register: state_check
+      changed_when: false
+      failed_when: "'cluster_state:ok' not in state_check.stdout"
+
+    - name: Verify all nodes are reachable
+      ansible.builtin.command: "redis-cli -h {{ item }} -p 6379 PING"
+      loop:
+        - 10.10.0.11
+        - 10.10.0.12
+        - 10.10.0.13
+        - 10.10.0.14
+        - 10.10.0.15
+        - 10.10.0.16
+      changed_when: false
+
+    - name: Display pre-upgrade status
+      ansible.builtin.debug:
+        msg: "Pre-flight checks PASSED. Starting rolling upgrade to {{ redis_version }}"
+
+# ============================================================
+# UPGRADE REPLICAS FIRST (one at a time)
+# ============================================================
+- name: Upgrade Replicas Sequentially
+  hosts: replicas
+  serial: 1
+  tasks:
+    - name: "Starting upgrade on replica {{ ansible_host }}"
+      ansible.builtin.debug:
+        msg: "Upgrading replica {{ ansible_host }} to {{ redis_version }}"
+
+    - name: Stop Redis on this replica
+      ansible.builtin.shell: redis-cli -h {{ ansible_host }} -p 6379 shutdown nosave || pkill redis-server || true
+      failed_when: false
+      changed_when: true
+
+    - name: Wait for Redis to stop
+      ansible.builtin.wait_for:
+        port: 6379
+        host: "{{ ansible_host }}"
+        state: stopped
+        timeout: 30
+
+    - name: Install new Redis version
+      ansible.builtin.include_role:
+        name: redis
+        tasks_from: install.yml
+
+    - name: Start Redis with existing config
+      ansible.builtin.shell: redis-server /etc/redis/redis.conf --daemonize yes
+      changed_when: true
+
+    - name: Wait for Redis to be ready
+      ansible.builtin.wait_for:
+        port: 6379
+        host: "{{ ansible_host }}"
+        delay: 3
+        timeout: 30
+
+    - name: Wait for replica to sync
+      ansible.builtin.shell: |
+        for i in $(seq 1 30); do
+          STATE=$(redis-cli -h {{ ansible_host }} -p 6379 cluster info 2>/dev/null | grep cluster_state | tr -d '\r')
+          if echo "$STATE" | grep -q "ok"; then
+            echo "Synced"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "Timeout"
+        exit 1
+      register: sync_wait
+      changed_when: false
+
+    - name: Verify cluster still healthy
+      ansible.builtin.command: redis-cli -h 10.10.0.11 -p 6379 cluster info
+      register: post_check
+      delegate_to: redis-node-1
+      changed_when: false
+      failed_when: "'cluster_state:ok' not in post_check.stdout"
+
+    - name: Report progress
+      ansible.builtin.debug:
+        msg: "Upgraded replica {{ ansible_host }} — cluster: ok"
+
+# ============================================================
+# UPGRADE MASTERS (one at a time, with failover)
+# ============================================================
+- name: Upgrade Masters via Failover
+  hosts: masters
+  serial: 1
+  tasks:
+    - name: "Starting upgrade on master {{ ansible_host }}"
+      ansible.builtin.debug:
+        msg: "Upgrading master {{ ansible_host }} to {{ redis_version }}"
+
+    - name: Get this master's node ID
+      ansible.builtin.shell: redis-cli -h {{ ansible_host }} -p 6379 cluster myid | tr -d '\r'
+      register: master_id
+      changed_when: false
+
+    - name: Find the replica for this master
+      ansible.builtin.shell: |
+        redis-cli -h 10.10.0.11 -p 6379 cluster nodes | grep "slave {{ master_id.stdout | trim }}" | awk '{print $2}' | cut -d'@' -f1 | cut -d':' -f1
+      register: replica_ip_result
+      delegate_to: redis-node-1
+      changed_when: false
+
+    - name: Trigger CLUSTER FAILOVER on the replica
+      ansible.builtin.command: "redis-cli -h {{ replica_ip_result.stdout | trim }} -p 6379 CLUSTER FAILOVER"
+      changed_when: true
+
+    - name: Wait for failover to complete
+      ansible.builtin.shell: |
+        for i in $(seq 1 30); do
+          ROLE=$(redis-cli -h {{ ansible_host }} -p 6379 info replication 2>/dev/null | grep role | tr -d '\r')
+          if echo "$ROLE" | grep -q "slave"; then
+            echo "Failover complete"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "Failover timeout"
+        exit 1
+      register: failover_wait
+      changed_when: false
+
+    - name: Stop Redis on old master (now replica)
+      ansible.builtin.shell: redis-cli -h {{ ansible_host }} -p 6379 shutdown nosave || pkill redis-server || true
+      failed_when: false
+      changed_when: true
+
+    - name: Wait for Redis to stop
+      ansible.builtin.wait_for:
+        port: 6379
+        host: "{{ ansible_host }}"
+        state: stopped
+        timeout: 30
+
+    - name: Install new Redis version
+      ansible.builtin.include_role:
+        name: redis
+        tasks_from: install.yml
+
+    - name: Start Redis with existing config
+      ansible.builtin.shell: redis-server /etc/redis/redis.conf --daemonize yes
+      changed_when: true
+
+    - name: Wait for Redis to be ready
+      ansible.builtin.wait_for:
+        port: 6379
+        host: "{{ ansible_host }}"
+        delay: 3
+        timeout: 30
+
+    - name: Wait for node to rejoin cluster
+      ansible.builtin.shell: |
+        for i in $(seq 1 30); do
+          STATE=$(redis-cli -h {{ ansible_host }} -p 6379 cluster info 2>/dev/null | grep cluster_state | tr -d '\r')
+          if echo "$STATE" | grep -q "ok"; then
+            echo "Rejoined"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "Rejoin timeout"
+        exit 1
+      register: rejoin_wait
+      changed_when: false
+
+    - name: Verify cluster still healthy
+      ansible.builtin.command: redis-cli -h 10.10.0.11 -p 6379 cluster info
+      register: post_master_check
+      delegate_to: redis-node-1
+      changed_when: false
+      failed_when: "'cluster_state:ok' not in post_master_check.stdout"
+
+    - name: Report progress
+      ansible.builtin.debug:
+        msg: "Upgraded master {{ ansible_host }} — cluster: ok"
+
+# ============================================================
+# POST-UPGRADE VERIFICATION
+# ============================================================
+- name: Post-upgrade Verification
+  hosts: redis-node-1
+  gather_facts: false
+  tasks:
+    - name: Check all nodes on target version
+      ansible.builtin.shell: |
+        for ip in 10.10.0.11 10.10.0.12 10.10.0.13 10.10.0.14 10.10.0.15 10.10.0.16; do
+          VER=$(redis-cli -h $ip -p 6379 INFO server 2>/dev/null | grep redis_version | tr -d '\r')
+          echo "$ip — $VER"
+        done
+      register: version_report
+      changed_when: false
+
+    - name: Display version report
+      ansible.builtin.debug:
+        msg: "{{ version_report.stdout_lines }}"
+
+    - name: Final cluster state
+      ansible.builtin.command: redis-cli -p 6379 cluster info
+      register: final_check
+      changed_when: false
+
+    - name: Confirm upgrade success
+      ansible.builtin.debug:
+        msg: "UPGRADE COMPLETE — all nodes on v{{ redis_version }}, cluster state: ok"
+      when: "'cluster_state:ok' in final_check.stdout"

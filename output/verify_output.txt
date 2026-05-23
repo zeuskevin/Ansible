@@ -1,0 +1,26 @@
+
+PLAY [Verify data integrity in Redis Cluster] **********************************
+
+TASK [Verify all keys and values] **********************************************
+[WARNING]: Host 'redis-node-1' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+ok: [redis-node-1]
+
+TASK [Display verification results] ********************************************
+ok: [redis-node-1] => {
+    "msg": [
+        "PASS — 1000/1000 keys verified"
+    ]
+}
+
+PLAY RECAP *********************************************************************
+redis-node-1               : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+[*] Launching system environment prerequisites evaluation...
+ [+] Found Runtime: Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2
+ [+] Found Executable: ansible-playbook [core 2.20.6]
+ [*] Environment Verification Cleared. Proceeding to orchestration pipeline...
+
+[*] Verifying 1000 keys in the cluster...
+
+
+[+] Data verification complete!

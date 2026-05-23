@@ -1,0 +1,19 @@
+# SSH keys - NEVER commit these
+id_rsa
+id_rsa.pub
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+
+# Ansible
+*.retry
+
+# Logs (optional - you can include if you want)
+# logs/
+
+# OS files
+.DS_Store
+*.swp
+*.swo

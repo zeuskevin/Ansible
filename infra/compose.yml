@@ -1,0 +1,76 @@
+services:
+  redis-node-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: redis-node-1
+    networks:
+      redis-net:
+        ipv4_address: 10.10.0.11
+    volumes:
+      - redis-data-1:/var/lib/redis
+  redis-node-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: redis-node-2
+    networks:
+      redis-net:
+        ipv4_address: 10.10.0.12
+    volumes:
+      - redis-data-2:/var/lib/redis
+  redis-node-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: redis-node-3
+    networks:
+      redis-net:
+        ipv4_address: 10.10.0.13
+    volumes:
+      - redis-data-3:/var/lib/redis
+  redis-node-4:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: redis-node-4
+    networks:
+      redis-net:
+        ipv4_address: 10.10.0.14
+    volumes:
+      - redis-data-4:/var/lib/redis
+  redis-node-5:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: redis-node-5
+    networks:
+      redis-net:
+        ipv4_address: 10.10.0.15
+    volumes:
+      - redis-data-5:/var/lib/redis
+  redis-node-6:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: redis-node-6
+    networks:
+      redis-net:
+        ipv4_address: 10.10.0.16
+    volumes:
+      - redis-data-6:/var/lib/redis
+
+networks:
+  redis-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.0.0/24
+
+volumes:
+  redis-data-1:
+  redis-data-2:
+  redis-data-3:
+  redis-data-4:
+  redis-data-5:
+  redis-data-6:

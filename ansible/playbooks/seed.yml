@@ -1,0 +1,40 @@
+---
+- name: Seed deterministic data into Redis Cluster
+  hosts: redis-node-1
+  gather_facts: false
+  tasks:
+    - name: Seed keys into cluster
+      ansible.builtin.shell: |
+        python3 << 'PYTHON'
+        import hashlib
+        import subprocess
+
+        total_keys = {{ num_keys | default(1000) }}
+        success = 0
+        failed = 0
+
+        for i in range(1, total_keys + 1):
+            key = f"key:{i:04d}"
+            value = hashlib.sha256(key.encode()).hexdigest()
+            cmd = f"redis-cli -c -h 10.10.0.11 -p 6379 SET {key} {value}"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if "OK" in result.stdout:
+                success += 1
+            else:
+                failed += 1
+
+        print(f"Total keys inserted: {success}/{total_keys}")
+        print(f"Failures: {failed}")
+        print("")
+        print("Distribution across masters:")
+        for ip in ["10.10.0.11", "10.10.0.12", "10.10.0.13"]:
+            cmd = f"redis-cli -h {ip} -p 6379 DBSIZE"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            print(f"  {ip}:6379 — {result.stdout.strip()}")
+        PYTHON
+      register: seed_output
+      changed_when: true
+
+    - name: Display seed results
+      ansible.builtin.debug:
+        msg: "{{ seed_output.stdout_lines }}"

@@ -1,0 +1,76 @@
+---
+- name: Determine if target Redis version is already active
+  ansible.builtin.command: redis-server --version
+  register: current_redis_version_check
+  failed_when: false
+  changed_when: false
+
+- name: Extract current version string if present
+  ansible.builtin.set_fact:
+    installed_version: "{{ (current_redis_version_check.stdout | regex_search('v=([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1')) | default([''], true) | first | default('none') }}"
+
+- name: Display version comparison
+  ansible.builtin.debug:
+    msg: "Current: {{ installed_version }} | Target: {{ redis_version }}"
+
+- name: Build and install Redis from source if version mismatches
+  block:
+    - name: Stop existing Redis if running
+      ansible.builtin.shell: redis-cli -p 6379 shutdown nosave || pkill redis-server || true
+      failed_when: false
+      changed_when: false
+
+    - name: Remove previous build directory to avoid conflicts
+      ansible.builtin.file:
+        path: "{{ redis_dir }}"
+        state: absent
+
+    - name: Create fresh compilation directory
+      ansible.builtin.file:
+        path: "{{ redis_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Install build dependencies
+      ansible.builtin.apt:
+        name:
+          - build-essential
+          - pkg-config
+          - libssl-dev
+        state: present
+        update_cache: yes
+
+    - name: Download Redis source archive
+      ansible.builtin.get_url:
+        url: "http://{{ redis_download_url }}"
+        dest: "/tmp/redis-{{ redis_version }}.tar.gz"
+        mode: '0644'
+        force: yes
+
+    - name: Unpack source package
+      ansible.builtin.unarchive:
+        src: "/tmp/redis-{{ redis_version }}.tar.gz"
+        dest: "{{ redis_dir }}"
+        remote_src: yes
+        extra_opts: [--strip-components=1]
+
+    - name: Compile Redis source binaries
+      ansible.builtin.shell: make -j$(nproc)
+      args:
+        chdir: "{{ redis_dir }}"
+
+    - name: Install Redis binaries to system path
+      ansible.builtin.shell: make install
+      args:
+        chdir: "{{ redis_dir }}"
+
+    - name: Verify Redis installation
+      ansible.builtin.command: redis-server --version
+      register: verify_install
+      changed_when: false
+
+    - name: Display installed version
+      ansible.builtin.debug:
+        msg: "Successfully installed: {{ verify_install.stdout }}"
+
+  when: installed_version != redis_version
