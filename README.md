@@ -18,7 +18,6 @@ First things first — we need 6 containers that act like real servers. They run
 
 ### Spinning Everything Up
 
-```bash
 # First, create an SSH key if you don't have one already
 ssh-keygen -t rsa -N "" -f /home/Ansible/id_rsa
 
@@ -52,40 +51,33 @@ Using the Tool
 Here's every command and what it actually does:
 
 Set Up the Cluster
-Bash
 ./redis-tool provision 7.0.15
 This does quite a bit behind the scenes — it installs Redis 7.0.15 from source on all 6 nodes, writes out the cluster config, starts everything up, and then forms the cluster so you end up with 3 masters each with a replica.
 
 See What's Going On
-Bash
 ./redis-tool status
 Gives you a quick snapshot — which nodes are masters, which are replicas, what version they're running, how many keys they hold, and how much memory they're using.
 
 Load Some Test Data
-Bash
 ./redis-tool data seed --keys 1000
 Puts 1000 key-value pairs into the cluster. The values are just SHA256 hashes of the key names, so we can always recalculate what they should be. The keys spread across all the masters automatically thanks to hash slots.
 
 Check the Data is Correct
-Bash
 ./redis-tool data verify --keys 1000
 Reads every key back out, recalculates what the value should be, and compares. You'll get either a nice "PASS — 1000/1000 keys verified" or it'll tell you exactly what's wrong.
 
 Upgrade Without Downtime
-Bash
 ./redis-tool upgrade --version 7.2.6
 This is the big one. It upgrades every node from 7.0.15 to 7.2.6 without the cluster ever going down. More details on how below.
 
 Run a Full Health Check
-Bash
 ./redis-tool verify --full
 Checks everything at once — cluster state, version consistency, slot coverage, topology, replication health, and data integrity. Basically answers the question "is everything actually working properly?"
 
 How the Rolling Upgrade Works
 This was the trickiest part to get right. The goal is simple: upgrade all 6 nodes without any moment where the cluster can't serve requests.
 
-The Process
-First, some pre-flight checks:
+some pre-flight checks:
 
 Is the cluster healthy right now?
 Can we reach all 6 nodes?
@@ -157,7 +149,7 @@ Everything runs from one control node. If your host machine dies mid-upgrade, yo
 The provision command won't fix a broken cluster. If the cluster is already formed but unhealthy, running provision again won't help — it sees the version matches and skips.
 
 Project Layout
-Plain Text
+
 /home/Ansible/
 ├── redis-tool                    ← The CLI you actually run
 ├── ansible/
@@ -188,20 +180,22 @@ Plain Text
 ├── logs/
 │   └── operation_log.json        ← JSON log of every operation
 └── README.md                     ← You're reading it
+
+
 If Things Go Wrong
 Redis won't start (complains about RDB format):
 
-Bash
 for i in 1 2 3 4 5 6; do
   docker exec redis-node-$i bash -c "rm -rf /var/lib/redis/appendonlydir"
   docker exec redis-node-$i bash -c "rm -f /var/lib/redis/nodes_6379.conf"
   docker exec redis-node-$i redis-server /etc/redis/redis.conf --daemonize yes
 done
+
+###
 Then re-form the cluster with ./redis-tool provision.
 
 Ansible can't reach the nodes:
 
-Bash
 # Check containers are actually running
 docker ps
 
@@ -209,16 +203,9 @@ docker ps
 ssh -i /home/Ansible/id_rsa -o StrictHostKeyChecking=no root@10.10.0.11 echo "OK"
 Want to check things manually:
 
-Bash
+# Check cluster health manually
 docker exec redis-node-1 redis-cli cluster info
 docker exec redis-node-1 redis-cli cluster nodes
-EOF
 
-Plain Text
-Now commit and push:
 
-```bash
-cd /home/Ansible
-git add README.md
-git commit -m "Add README documentation"
-git push origin main
+
