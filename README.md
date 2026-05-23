@@ -1,4 +1,4 @@
-# Redis Cluster Lifecycle Tool
+# Redis Cluster
 
 This is a CLI tool I built that uses Ansible under the hood to manage a 6-node Redis Cluster. It handles everything from initial setup to rolling upgrades — all without any downtime.
 
