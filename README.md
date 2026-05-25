@@ -25,9 +25,6 @@ ssh-keygen -t rsa -N "" -f /home/Ansible/id_rsa
 cd infra
 docker compose up -d --build
 
-# If you're using Podman instead:
-# podman-compose up -d --build
-
 # Make sure everything came up
 docker ps
 
