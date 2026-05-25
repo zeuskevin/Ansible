@@ -1,0 +1,191 @@
+---
+- name: Pre-rollback checks
+  hosts: redis-node-1
+  gather_facts: false
+  tasks:
+    - name: Check cluster health
+      ansible.builtin.command: redis-cli -h 10.10.0.11 -p 6379 cluster info
+      register: cluster_health
+      changed_when: false
+
+    - name: Display current state
+      ansible.builtin.debug:
+        msg: "Cluster state: {{ cluster_health.stdout_lines | select('match', 'cluster_state.*') | list }}"
+
+    - name: Show current versions
+      ansible.builtin.shell: |
+        for ip in 10.10.0.11 10.10.0.12 10.10.0.13 10.10.0.14 10.10.0.15 10.10.0.16; do
+          VER=$(redis-cli -h $ip -p 6379 INFO server 2>/dev/null | grep redis_version | tr -d '\r')
+          echo "$ip — $VER"
+        done
+      register: versions
+      changed_when: false
+
+    - name: Display versions
+      ansible.builtin.debug:
+        msg: "{{ versions.stdout_lines }}"
+
+- name: Rollback replicas first
+  hosts: replicas
+  serial: 1
+  vars:
+    redis_version: "{{ target_version }}"
+  tasks:
+    - name: Check if this node needs rollback
+      ansible.builtin.command: redis-server --version
+      register: current_ver
+      changed_when: false
+
+    - name: Extract version
+      ansible.builtin.set_fact:
+        node_version: "{{ (current_ver.stdout | regex_search('v=([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1')) | default([''], true) | first | default('none') }}"
+
+    - name: Rollback this replica
+      block:
+        - name: Stop Redis
+          ansible.builtin.shell: redis-cli -h {{ ansible_host }} -p 6379 shutdown nosave || pkill redis-server || true
+          failed_when: false
+
+        - name: Wait for stop
+          ansible.builtin.wait_for:
+            port: 6379
+            host: "{{ ansible_host }}"
+            state: stopped
+            timeout: 30
+
+        - name: Clear incompatible data files
+          ansible.builtin.shell: |
+            rm -rf /var/lib/redis/appendonlydir
+            rm -f /var/lib/redis/dump.rdb
+
+        - name: Install target version
+          ansible.builtin.include_role:
+            name: redis
+            tasks_from: install.yml
+
+        - name: Start Redis
+          ansible.builtin.shell: redis-server /etc/redis/redis.conf --daemonize yes
+
+        - name: Wait for Redis
+          ansible.builtin.wait_for:
+            port: 6379
+            host: "{{ ansible_host }}"
+            delay: 3
+            timeout: 30
+
+        - name: Wait for sync
+          ansible.builtin.shell: |
+            for i in $(seq 1 30); do
+              STATE=$(redis-cli -h {{ ansible_host }} -p 6379 cluster info 2>/dev/null | grep cluster_state | tr -d '\r')
+              if echo "$STATE" | grep -q "ok"; then
+                exit 0
+              fi
+              sleep 2
+            done
+            exit 1
+          changed_when: false
+
+        - name: Report
+          ansible.builtin.debug:
+            msg: "Rolled back {{ ansible_host }} to {{ target_version }}"
+      when: node_version != target_version
+
+- name: Rollback masters (stop and let automatic failover happen)
+  hosts: masters
+  serial: 1
+  vars:
+    redis_version: "{{ target_version }}"
+  tasks:
+    - name: Check if this node needs rollback
+      ansible.builtin.command: redis-server --version
+      register: current_ver
+      changed_when: false
+
+    - name: Extract version
+      ansible.builtin.set_fact:
+        node_version: "{{ (current_ver.stdout | regex_search('v=([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1')) | default([''], true) | first | default('none') }}"
+
+    - name: Rollback this master
+      block:
+        - name: Stop Redis on master (cluster will auto-failover)
+          ansible.builtin.shell: redis-cli -h {{ ansible_host }} -p 6379 shutdown nosave || pkill redis-server || true
+          failed_when: false
+
+        - name: Wait for Redis to stop
+          ansible.builtin.wait_for:
+            port: 6379
+            host: "{{ ansible_host }}"
+            state: stopped
+            timeout: 30
+
+        - name: Wait for cluster to promote replica automatically
+          ansible.builtin.pause:
+            seconds: 10
+
+        - name: Clear incompatible data files
+          ansible.builtin.shell: |
+            rm -rf /var/lib/redis/appendonlydir
+            rm -f /var/lib/redis/dump.rdb
+
+        - name: Install target version
+          ansible.builtin.include_role:
+            name: redis
+            tasks_from: install.yml
+
+        - name: Start Redis
+          ansible.builtin.shell: redis-server /etc/redis/redis.conf --daemonize yes
+
+        - name: Wait for Redis
+          ansible.builtin.wait_for:
+            port: 6379
+            host: "{{ ansible_host }}"
+            delay: 3
+            timeout: 30
+
+        - name: Wait for node to rejoin cluster
+          ansible.builtin.shell: |
+            for i in $(seq 1 40); do
+              STATE=$(redis-cli -h {{ ansible_host }} -p 6379 cluster info 2>/dev/null | grep cluster_state | tr -d '\r')
+              if echo "$STATE" | grep -q "ok"; then
+                exit 0
+              fi
+              sleep 3
+            done
+            exit 1
+          changed_when: false
+
+        - name: Report
+          ansible.builtin.debug:
+            msg: "Rolled back {{ ansible_host }} to {{ target_version }}"
+      when: node_version != target_version
+
+- name: Post-rollback verification
+  hosts: redis-node-1
+  gather_facts: false
+  tasks:
+    - name: Wait for cluster to stabilize
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Check all versions
+      ansible.builtin.shell: |
+        for ip in 10.10.0.11 10.10.0.12 10.10.0.13 10.10.0.14 10.10.0.15 10.10.0.16; do
+          VER=$(redis-cli -h $ip -p 6379 INFO server 2>/dev/null | grep redis_version | tr -d '\r')
+          echo "$ip — $VER"
+        done
+      register: final_versions
+      changed_when: false
+
+    - name: Display
+      ansible.builtin.debug:
+        msg: "{{ final_versions.stdout_lines }}"
+
+    - name: Check cluster state
+      ansible.builtin.command: redis-cli -h 10.10.0.11 -p 6379 cluster info
+      register: final_state
+      changed_when: false
+
+    - name: Confirm rollback
+      ansible.builtin.debug:
+        msg: "ROLLBACK COMPLETE — all nodes on v{{ target_version }}"
+      when: "'cluster_state:ok' in final_state.stdout"

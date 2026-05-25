@@ -1,0 +1,56 @@
+---
+- name: Install Redis on new nodes
+  hosts: scale_nodes
+  gather_facts: true
+  roles:
+    - redis
+
+- name: Add new nodes to cluster and rebalance
+  hosts: redis-node-1
+  gather_facts: false
+  tasks:
+    - name: Add new master to cluster
+      ansible.builtin.command: >
+        redis-cli --cluster add-node {{ new_master_ip }}:6379 10.10.0.11:6379
+      register: add_master_result
+      changed_when: true
+
+    - name: Wait for new master to join
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: Get new master's node ID
+      ansible.builtin.shell: |
+        redis-cli -h {{ new_master_ip }} -p 6379 cluster myid | tr -d '\r'
+      register: new_master_id
+      changed_when: false
+
+    - name: Add new replica to cluster
+      ansible.builtin.command: >
+        redis-cli --cluster add-node {{ new_replica_ip }}:6379 10.10.0.11:6379
+        --cluster-slave --cluster-master-id {{ new_master_id.stdout | trim }}
+      register: add_replica_result
+      changed_when: true
+
+    - name: Wait for replica to join
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: Rebalance hash slots across all masters
+      ansible.builtin.command: >
+        redis-cli --cluster rebalance 10.10.0.11:6379 --cluster-use-empty-masters
+      register: rebalance_result
+      changed_when: true
+
+    - name: Display rebalance result
+      ansible.builtin.debug:
+        msg: "{{ rebalance_result.stdout_lines }}"
+
+    - name: Show final cluster topology
+      ansible.builtin.command: redis-cli -h 10.10.0.11 -p 6379 cluster nodes
+      register: final_nodes
+      changed_when: false
+
+    - name: Display topology
+      ansible.builtin.debug:
+        msg: "{{ final_nodes.stdout_lines }}"

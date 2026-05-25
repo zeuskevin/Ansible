@@ -1,0 +1,63 @@
+---
+- name: Scale In - Remove node from Redis Cluster
+  hosts: redis-node-1
+  gather_facts: false
+  tasks:
+    - name: Get cluster nodes info
+      ansible.builtin.command: redis-cli -h 10.10.0.11 -p 6379 cluster nodes
+      register: cluster_nodes
+      changed_when: false
+
+    - name: Check if node is a master with slots
+      ansible.builtin.shell: |
+        echo "{{ cluster_nodes.stdout }}" | grep "{{ remove_node_id }}" | grep -c "master"
+      register: is_master
+      failed_when: false
+      changed_when: false
+
+    - name: Migrate slots off the master (if it has any)
+      ansible.builtin.command: >
+        redis-cli --cluster reshard 10.10.0.11:6379
+        --cluster-from {{ remove_node_id }}
+        --cluster-to {{ target_master_id }}
+        --cluster-slots 16384
+        --cluster-yes
+      when: is_master.stdout | trim == "1"
+      register: reshard_result
+      changed_when: true
+
+    - name: Wait for slot migration
+      ansible.builtin.pause:
+        seconds: 5
+      when: is_master.stdout | trim == "1"
+
+    - name: Find and remove replica of this node
+      ansible.builtin.shell: |
+        REPLICA_ID=$(echo "{{ cluster_nodes.stdout }}" | grep "slave {{ remove_node_id }}" | awk '{print $1}')
+        if [ -n "$REPLICA_ID" ]; then
+          redis-cli --cluster del-node 10.10.0.11:6379 $REPLICA_ID
+          echo "Removed replica: $REPLICA_ID"
+        else
+          echo "No replica found"
+        fi
+      register: remove_replica
+      changed_when: true
+
+    - name: Remove the node from cluster
+      ansible.builtin.command: >
+        redis-cli --cluster del-node 10.10.0.11:6379 {{ remove_node_id }}
+      register: remove_result
+      changed_when: true
+
+    - name: Display result
+      ansible.builtin.debug:
+        msg: "{{ remove_result.stdout_lines }}"
+
+    - name: Show final topology
+      ansible.builtin.command: redis-cli -h 10.10.0.11 -p 6379 cluster nodes
+      register: final_nodes
+      changed_when: false
+
+    - name: Display topology
+      ansible.builtin.debug:
+        msg: "{{ final_nodes.stdout_lines }}"

@@ -1,0 +1,61 @@
+
+PLAY [Scale In - Remove node from Redis Cluster] *******************************
+
+TASK [Get cluster nodes info] **************************************************
+[WARNING]: Host 'redis-node-1' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+ok: [redis-node-1]
+
+TASK [Check if node is a master with slots] ************************************
+ok: [redis-node-1]
+
+TASK [Migrate slots off the master (if it has any)] ****************************
+changed: [redis-node-1]
+
+TASK [Wait for slot migration] *************************************************
+Pausing for 5 seconds
+(ctrl+C then 'C' = continue early, ctrl+C then 'A' = abort)
+ok: [redis-node-1]
+
+TASK [Find and remove replica of this node] ************************************
+changed: [redis-node-1]
+
+TASK [Remove the node from cluster] ********************************************
+changed: [redis-node-1]
+
+TASK [Display result] **********************************************************
+ok: [redis-node-1] => {
+    "msg": [
+        "\u001b[29;1m>>> Removing node 06d8ccf1d5f0dfb5eec3cfd301a1488d30f69650 from cluster 10.10.0.11:6379",
+        "\u001b[0m\u001b[29;1m>>> Sending CLUSTER FORGET messages to the cluster...",
+        "\u001b[0m\u001b[29;1m>>> Sending CLUSTER RESET SOFT to the deleted node.",
+        "\u001b[0m"
+    ]
+}
+
+TASK [Show final topology] *****************************************************
+ok: [redis-node-1]
+
+TASK [Display topology] ********************************************************
+ok: [redis-node-1] => {
+    "msg": [
+        "c998e6c4dcc5e4881e6c4f6abfc31b38e5a8db5b 10.10.0.12:6379@16379 slave 1c4bd75d6e16967fc0135ccc46eeed95120762ae 0 1779705876472 13 connected",
+        "1c4bd75d6e16967fc0135ccc46eeed95120762ae 10.10.0.16:6379@16379 master - 0 1779705876000 13 connected 0-4095 6827-10922",
+        "bc5095852917a9235a674ff255fc4b0841c7a65b 10.10.0.11:6379@16379 myself,slave 314f3af8f33c5f0a681f9b6e5cd79dd32a5262fb 0 1779705875000 9 connected",
+        "314f3af8f33c5f0a681f9b6e5cd79dd32a5262fb 10.10.0.15:6379@16379 master - 0 1779705877076 9 connected 4096-6826 10923-12287",
+        "27b464f056d48017de1e5822851243d615e9a655 10.10.0.14:6379@16379 master - 0 1779705876573 11 connected 12288-16383",
+        "e96596b2997329ac14a914726a45296714e9b87c 10.10.0.13:6379@16379 slave 27b464f056d48017de1e5822851243d615e9a655 0 1779705875469 11 connected"
+    ]
+}
+
+PLAY RECAP *********************************************************************
+redis-node-1               : ok=9    changed=3    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+[*] Launching system environment prerequisites evaluation...
+ [+] Found Runtime: Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2
+ [+] Found Executable: ansible-playbook [core 2.20.6]
+ [*] Environment Verification Cleared. Proceeding to orchestration pipeline...
+
+[*] Scaling in — removing node 06d8ccf1d5f0dfb5eec3cfd301a1488d30f69650...
+
+
+[+] Node 06d8ccf1d5f0dfb5eec3cfd301a1488d30f69650 removed from cluster

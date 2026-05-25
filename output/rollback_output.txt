@@ -1,544 +1,19 @@
 
-PLAY [Pre-flight Verification] *************************************************
+PLAY [Pre-rollback checks] *****************************************************
 
-TASK [Verify cluster is healthy] ***********************************************
+TASK [Check cluster health] ****************************************************
 [WARNING]: Host 'redis-node-1' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
 ok: [redis-node-1]
 
-TASK [Verify all nodes are reachable] ******************************************
-ok: [redis-node-1] => (item=10.10.0.11)
-ok: [redis-node-1] => (item=10.10.0.12)
-ok: [redis-node-1] => (item=10.10.0.13)
-ok: [redis-node-1] => (item=10.10.0.14)
-ok: [redis-node-1] => (item=10.10.0.15)
-ok: [redis-node-1] => (item=10.10.0.16)
-
-TASK [Display pre-upgrade status] **********************************************
+TASK [Display current state] ***************************************************
 ok: [redis-node-1] => {
-    "msg": "Pre-flight checks PASSED. Starting rolling upgrade to 7.2.6"
+    "msg": "Cluster state: ['cluster_state:ok']"
 }
 
-PLAY [Upgrade Replicas Sequentially] *******************************************
-
-TASK [Gathering Facts] *********************************************************
-[WARNING]: Host 'redis-node-4' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
-ok: [redis-node-4]
-
-TASK [Starting upgrade on replica 10.10.0.14] **********************************
-ok: [redis-node-4] => {
-    "msg": "Upgrading replica 10.10.0.14 to 7.2.6"
-}
-
-TASK [Stop Redis on this replica] **********************************************
-changed: [redis-node-4]
-
-TASK [Wait for Redis to stop] **************************************************
-ok: [redis-node-4]
-
-TASK [Install new Redis version] ***********************************************
-included: redis for redis-node-4
-
-TASK [redis : Determine if target Redis version is already active] *************
-ok: [redis-node-4]
-
-TASK [redis : Extract current version string if present] ***********************
-ok: [redis-node-4]
-
-TASK [redis : Display version comparison] **************************************
-ok: [redis-node-4] => {
-    "msg": "Current: 7.0.15 | Target: 7.2.6"
-}
-
-TASK [redis : Stop existing Redis if running] **********************************
-ok: [redis-node-4]
-
-TASK [redis : Remove previous build directory to avoid conflicts] **************
-changed: [redis-node-4]
-
-TASK [redis : Create fresh compilation directory] ******************************
-changed: [redis-node-4]
-
-TASK [redis : Install build dependencies] **************************************
-ok: [redis-node-4]
-
-TASK [redis : Download Redis source archive] ***********************************
-ok: [redis-node-4]
-
-TASK [redis : Unpack source package] *******************************************
-changed: [redis-node-4]
-
-TASK [redis : Compile Redis source binaries] ***********************************
-changed: [redis-node-4]
-
-TASK [redis : Install Redis binaries to system path] ***************************
-changed: [redis-node-4]
-
-TASK [redis : Verify Redis installation] ***************************************
-ok: [redis-node-4]
-
-TASK [redis : Display installed version] ***************************************
-ok: [redis-node-4] => {
-    "msg": "Successfully installed: Redis server v=7.2.6 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=34779a56e1e7f907"
-}
-
-TASK [Start Redis with existing config] ****************************************
-changed: [redis-node-4]
-
-TASK [Wait for Redis to be ready] **********************************************
-ok: [redis-node-4]
-
-TASK [Wait for replica to sync] ************************************************
-ok: [redis-node-4]
-
-TASK [Verify cluster still healthy] ********************************************
-ok: [redis-node-4 -> redis-node-1(10.10.0.11)]
-
-TASK [Report progress] *********************************************************
-ok: [redis-node-4] => {
-    "msg": "Upgraded replica 10.10.0.14 — cluster: ok"
-}
-
-PLAY [Upgrade Replicas Sequentially] *******************************************
-
-TASK [Gathering Facts] *********************************************************
-[WARNING]: Host 'redis-node-5' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
-ok: [redis-node-5]
-
-TASK [Starting upgrade on replica 10.10.0.14] **********************************
-ok: [redis-node-5] => {
-    "msg": "Upgrading replica 10.10.0.15 to 7.2.6"
-}
-
-TASK [Stop Redis on this replica] **********************************************
-changed: [redis-node-5]
-
-TASK [Wait for Redis to stop] **************************************************
-ok: [redis-node-5]
-
-TASK [Install new Redis version] ***********************************************
-included: redis for redis-node-5
-
-TASK [redis : Determine if target Redis version is already active] *************
-ok: [redis-node-5]
-
-TASK [redis : Extract current version string if present] ***********************
-ok: [redis-node-5]
-
-TASK [redis : Display version comparison] **************************************
-ok: [redis-node-5] => {
-    "msg": "Current: 7.0.15 | Target: 7.2.6"
-}
-
-TASK [redis : Stop existing Redis if running] **********************************
-ok: [redis-node-5]
-
-TASK [redis : Remove previous build directory to avoid conflicts] **************
-changed: [redis-node-5]
-
-TASK [redis : Create fresh compilation directory] ******************************
-changed: [redis-node-5]
-
-TASK [redis : Install build dependencies] **************************************
-ok: [redis-node-5]
-
-TASK [redis : Download Redis source archive] ***********************************
-ok: [redis-node-5]
-
-TASK [redis : Unpack source package] *******************************************
-changed: [redis-node-5]
-
-TASK [redis : Compile Redis source binaries] ***********************************
-changed: [redis-node-5]
-
-TASK [redis : Install Redis binaries to system path] ***************************
-changed: [redis-node-5]
-
-TASK [redis : Verify Redis installation] ***************************************
-ok: [redis-node-5]
-
-TASK [redis : Display installed version] ***************************************
-ok: [redis-node-5] => {
-    "msg": "Successfully installed: Redis server v=7.2.6 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=8043add4cb92c435"
-}
-
-TASK [Start Redis with existing config] ****************************************
-changed: [redis-node-5]
-
-TASK [Wait for Redis to be ready] **********************************************
-ok: [redis-node-5]
-
-TASK [Wait for replica to sync] ************************************************
-ok: [redis-node-5]
-
-TASK [Verify cluster still healthy] ********************************************
-ok: [redis-node-5 -> redis-node-1(10.10.0.11)]
-
-TASK [Report progress] *********************************************************
-ok: [redis-node-5] => {
-    "msg": "Upgraded replica 10.10.0.15 — cluster: ok"
-}
-
-PLAY [Upgrade Replicas Sequentially] *******************************************
-
-TASK [Gathering Facts] *********************************************************
-[WARNING]: Host 'redis-node-6' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
-ok: [redis-node-6]
-
-TASK [Starting upgrade on replica 10.10.0.14] **********************************
-ok: [redis-node-6] => {
-    "msg": "Upgrading replica 10.10.0.16 to 7.2.6"
-}
-
-TASK [Stop Redis on this replica] **********************************************
-changed: [redis-node-6]
-
-TASK [Wait for Redis to stop] **************************************************
-ok: [redis-node-6]
-
-TASK [Install new Redis version] ***********************************************
-included: redis for redis-node-6
-
-TASK [redis : Determine if target Redis version is already active] *************
-ok: [redis-node-6]
-
-TASK [redis : Extract current version string if present] ***********************
-ok: [redis-node-6]
-
-TASK [redis : Display version comparison] **************************************
-ok: [redis-node-6] => {
-    "msg": "Current: 7.0.15 | Target: 7.2.6"
-}
-
-TASK [redis : Stop existing Redis if running] **********************************
-ok: [redis-node-6]
-
-TASK [redis : Remove previous build directory to avoid conflicts] **************
-changed: [redis-node-6]
-
-TASK [redis : Create fresh compilation directory] ******************************
-changed: [redis-node-6]
-
-TASK [redis : Install build dependencies] **************************************
-ok: [redis-node-6]
-
-TASK [redis : Download Redis source archive] ***********************************
-ok: [redis-node-6]
-
-TASK [redis : Unpack source package] *******************************************
-changed: [redis-node-6]
-
-TASK [redis : Compile Redis source binaries] ***********************************
-changed: [redis-node-6]
-
-TASK [redis : Install Redis binaries to system path] ***************************
-changed: [redis-node-6]
-
-TASK [redis : Verify Redis installation] ***************************************
-ok: [redis-node-6]
-
-TASK [redis : Display installed version] ***************************************
-ok: [redis-node-6] => {
-    "msg": "Successfully installed: Redis server v=7.2.6 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=3e73624bab4e5251"
-}
-
-TASK [Start Redis with existing config] ****************************************
-changed: [redis-node-6]
-
-TASK [Wait for Redis to be ready] **********************************************
-ok: [redis-node-6]
-
-TASK [Wait for replica to sync] ************************************************
-ok: [redis-node-6]
-
-TASK [Verify cluster still healthy] ********************************************
-ok: [redis-node-6 -> redis-node-1(10.10.0.11)]
-
-TASK [Report progress] *********************************************************
-ok: [redis-node-6] => {
-    "msg": "Upgraded replica 10.10.0.16 — cluster: ok"
-}
-
-PLAY [Upgrade Masters via Failover] ********************************************
-
-TASK [Gathering Facts] *********************************************************
+TASK [Show current versions] ***************************************************
 ok: [redis-node-1]
 
-TASK [Starting upgrade on master 10.10.0.11] ***********************************
-ok: [redis-node-1] => {
-    "msg": "Upgrading master 10.10.0.11 to 7.2.6"
-}
-
-TASK [Get this master's node ID] ***********************************************
-ok: [redis-node-1]
-
-TASK [Find the replica for this master] ****************************************
-ok: [redis-node-1]
-
-TASK [Trigger CLUSTER FAILOVER on the replica] *********************************
-changed: [redis-node-1]
-
-TASK [Wait for failover to complete] *******************************************
-ok: [redis-node-1]
-
-TASK [Stop Redis on old master (now replica)] **********************************
-changed: [redis-node-1]
-
-TASK [Wait for Redis to stop] **************************************************
-ok: [redis-node-1]
-
-TASK [Install new Redis version] ***********************************************
-included: redis for redis-node-1
-
-TASK [redis : Determine if target Redis version is already active] *************
-ok: [redis-node-1]
-
-TASK [redis : Extract current version string if present] ***********************
-ok: [redis-node-1]
-
-TASK [redis : Display version comparison] **************************************
-ok: [redis-node-1] => {
-    "msg": "Current: 7.0.15 | Target: 7.2.6"
-}
-
-TASK [redis : Stop existing Redis if running] **********************************
-ok: [redis-node-1]
-
-TASK [redis : Remove previous build directory to avoid conflicts] **************
-changed: [redis-node-1]
-
-TASK [redis : Create fresh compilation directory] ******************************
-changed: [redis-node-1]
-
-TASK [redis : Install build dependencies] **************************************
-ok: [redis-node-1]
-
-TASK [redis : Download Redis source archive] ***********************************
-ok: [redis-node-1]
-
-TASK [redis : Unpack source package] *******************************************
-changed: [redis-node-1]
-
-TASK [redis : Compile Redis source binaries] ***********************************
-changed: [redis-node-1]
-
-TASK [redis : Install Redis binaries to system path] ***************************
-changed: [redis-node-1]
-
-TASK [redis : Verify Redis installation] ***************************************
-ok: [redis-node-1]
-
-TASK [redis : Display installed version] ***************************************
-ok: [redis-node-1] => {
-    "msg": "Successfully installed: Redis server v=7.2.6 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=4281843402a403d6"
-}
-
-TASK [Start Redis with existing config] ****************************************
-changed: [redis-node-1]
-
-TASK [Wait for Redis to be ready] **********************************************
-ok: [redis-node-1]
-
-TASK [Wait for node to rejoin cluster] *****************************************
-ok: [redis-node-1]
-
-TASK [Verify cluster still healthy] ********************************************
-ok: [redis-node-1]
-
-TASK [Report progress] *********************************************************
-ok: [redis-node-1] => {
-    "msg": "Upgraded master 10.10.0.11 — cluster: ok"
-}
-
-PLAY [Upgrade Masters via Failover] ********************************************
-
-TASK [Gathering Facts] *********************************************************
-[WARNING]: Host 'redis-node-2' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
-ok: [redis-node-2]
-
-TASK [Starting upgrade on master 10.10.0.11] ***********************************
-ok: [redis-node-2] => {
-    "msg": "Upgrading master 10.10.0.12 to 7.2.6"
-}
-
-TASK [Get this master's node ID] ***********************************************
-ok: [redis-node-2]
-
-TASK [Find the replica for this master] ****************************************
-ok: [redis-node-2 -> redis-node-1(10.10.0.11)]
-
-TASK [Trigger CLUSTER FAILOVER on the replica] *********************************
-changed: [redis-node-2]
-
-TASK [Wait for failover to complete] *******************************************
-ok: [redis-node-2]
-
-TASK [Stop Redis on old master (now replica)] **********************************
-changed: [redis-node-2]
-
-TASK [Wait for Redis to stop] **************************************************
-ok: [redis-node-2]
-
-TASK [Install new Redis version] ***********************************************
-included: redis for redis-node-2
-
-TASK [redis : Determine if target Redis version is already active] *************
-ok: [redis-node-2]
-
-TASK [redis : Extract current version string if present] ***********************
-ok: [redis-node-2]
-
-TASK [redis : Display version comparison] **************************************
-ok: [redis-node-2] => {
-    "msg": "Current: 7.0.15 | Target: 7.2.6"
-}
-
-TASK [redis : Stop existing Redis if running] **********************************
-ok: [redis-node-2]
-
-TASK [redis : Remove previous build directory to avoid conflicts] **************
-changed: [redis-node-2]
-
-TASK [redis : Create fresh compilation directory] ******************************
-changed: [redis-node-2]
-
-TASK [redis : Install build dependencies] **************************************
-ok: [redis-node-2]
-
-TASK [redis : Download Redis source archive] ***********************************
-ok: [redis-node-2]
-
-TASK [redis : Unpack source package] *******************************************
-changed: [redis-node-2]
-
-TASK [redis : Compile Redis source binaries] ***********************************
-changed: [redis-node-2]
-
-TASK [redis : Install Redis binaries to system path] ***************************
-changed: [redis-node-2]
-
-TASK [redis : Verify Redis installation] ***************************************
-ok: [redis-node-2]
-
-TASK [redis : Display installed version] ***************************************
-ok: [redis-node-2] => {
-    "msg": "Successfully installed: Redis server v=7.2.6 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=c7ab833fd01fd60f"
-}
-
-TASK [Start Redis with existing config] ****************************************
-changed: [redis-node-2]
-
-TASK [Wait for Redis to be ready] **********************************************
-ok: [redis-node-2]
-
-TASK [Wait for node to rejoin cluster] *****************************************
-ok: [redis-node-2]
-
-TASK [Verify cluster still healthy] ********************************************
-ok: [redis-node-2 -> redis-node-1(10.10.0.11)]
-
-TASK [Report progress] *********************************************************
-ok: [redis-node-2] => {
-    "msg": "Upgraded master 10.10.0.12 — cluster: ok"
-}
-
-PLAY [Upgrade Masters via Failover] ********************************************
-
-TASK [Gathering Facts] *********************************************************
-[WARNING]: Host 'redis-node-3' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
-ok: [redis-node-3]
-
-TASK [Starting upgrade on master 10.10.0.11] ***********************************
-ok: [redis-node-3] => {
-    "msg": "Upgrading master 10.10.0.13 to 7.2.6"
-}
-
-TASK [Get this master's node ID] ***********************************************
-ok: [redis-node-3]
-
-TASK [Find the replica for this master] ****************************************
-ok: [redis-node-3 -> redis-node-1(10.10.0.11)]
-
-TASK [Trigger CLUSTER FAILOVER on the replica] *********************************
-changed: [redis-node-3]
-
-TASK [Wait for failover to complete] *******************************************
-ok: [redis-node-3]
-
-TASK [Stop Redis on old master (now replica)] **********************************
-changed: [redis-node-3]
-
-TASK [Wait for Redis to stop] **************************************************
-ok: [redis-node-3]
-
-TASK [Install new Redis version] ***********************************************
-included: redis for redis-node-3
-
-TASK [redis : Determine if target Redis version is already active] *************
-ok: [redis-node-3]
-
-TASK [redis : Extract current version string if present] ***********************
-ok: [redis-node-3]
-
-TASK [redis : Display version comparison] **************************************
-ok: [redis-node-3] => {
-    "msg": "Current: 7.0.15 | Target: 7.2.6"
-}
-
-TASK [redis : Stop existing Redis if running] **********************************
-ok: [redis-node-3]
-
-TASK [redis : Remove previous build directory to avoid conflicts] **************
-changed: [redis-node-3]
-
-TASK [redis : Create fresh compilation directory] ******************************
-changed: [redis-node-3]
-
-TASK [redis : Install build dependencies] **************************************
-ok: [redis-node-3]
-
-TASK [redis : Download Redis source archive] ***********************************
-ok: [redis-node-3]
-
-TASK [redis : Unpack source package] *******************************************
-changed: [redis-node-3]
-
-TASK [redis : Compile Redis source binaries] ***********************************
-changed: [redis-node-3]
-
-TASK [redis : Install Redis binaries to system path] ***************************
-changed: [redis-node-3]
-
-TASK [redis : Verify Redis installation] ***************************************
-ok: [redis-node-3]
-
-TASK [redis : Display installed version] ***************************************
-ok: [redis-node-3] => {
-    "msg": "Successfully installed: Redis server v=7.2.6 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=c9b226e74575edd"
-}
-
-TASK [Start Redis with existing config] ****************************************
-changed: [redis-node-3]
-
-TASK [Wait for Redis to be ready] **********************************************
-ok: [redis-node-3]
-
-TASK [Wait for node to rejoin cluster] *****************************************
-ok: [redis-node-3]
-
-TASK [Verify cluster still healthy] ********************************************
-ok: [redis-node-3 -> redis-node-1(10.10.0.11)]
-
-TASK [Report progress] *********************************************************
-ok: [redis-node-3] => {
-    "msg": "Upgraded master 10.10.0.13 — cluster: ok"
-}
-
-PLAY [Post-upgrade Verification] ***********************************************
-
-TASK [Check all nodes on target version] ***************************************
-ok: [redis-node-1]
-
-TASK [Display version report] **************************************************
+TASK [Display versions] ********************************************************
 ok: [redis-node-1] => {
     "msg": [
         "10.10.0.11 — redis_version:7.2.6",
@@ -550,28 +25,550 @@ ok: [redis-node-1] => {
     ]
 }
 
-TASK [Final cluster state] *****************************************************
+PLAY [Rollback replicas first] *************************************************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Host 'redis-node-4' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+ok: [redis-node-4]
+
+TASK [Check if this node needs rollback] ***************************************
+ok: [redis-node-4]
+
+TASK [Extract version] *********************************************************
+ok: [redis-node-4]
+
+TASK [Stop Redis] **************************************************************
+changed: [redis-node-4]
+
+TASK [Wait for stop] ***********************************************************
+ok: [redis-node-4]
+
+TASK [Clear incompatible data files] *******************************************
+changed: [redis-node-4]
+
+TASK [Install target version] **************************************************
+included: redis for redis-node-4
+
+TASK [redis : Determine if target Redis version is already active] *************
+ok: [redis-node-4]
+
+TASK [redis : Extract current version string if present] ***********************
+ok: [redis-node-4]
+
+TASK [redis : Display version comparison] **************************************
+ok: [redis-node-4] => {
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+
+TASK [redis : Stop existing Redis if running] **********************************
+ok: [redis-node-4]
+
+TASK [redis : Remove previous build directory to avoid conflicts] **************
+changed: [redis-node-4]
+
+TASK [redis : Create fresh compilation directory] ******************************
+changed: [redis-node-4]
+
+TASK [redis : Install build dependencies] **************************************
+ok: [redis-node-4]
+
+TASK [redis : Download Redis source archive] ***********************************
+ok: [redis-node-4]
+
+TASK [redis : Unpack source package] *******************************************
+changed: [redis-node-4]
+
+TASK [redis : Compile Redis source binaries] ***********************************
+changed: [redis-node-4]
+
+TASK [redis : Install Redis binaries to system path] ***************************
+changed: [redis-node-4]
+
+TASK [redis : Verify Redis installation] ***************************************
+ok: [redis-node-4]
+
+TASK [redis : Display installed version] ***************************************
+ok: [redis-node-4] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=ccce3005e069da26"
+}
+
+TASK [Start Redis] *************************************************************
+changed: [redis-node-4]
+
+TASK [Wait for Redis] **********************************************************
+ok: [redis-node-4]
+
+TASK [Wait for sync] ***********************************************************
+ok: [redis-node-4]
+
+TASK [Report] ******************************************************************
+ok: [redis-node-4] => {
+    "msg": "Rolled back 10.10.0.14 to 7.0.15"
+}
+
+PLAY [Rollback replicas first] *************************************************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Host 'redis-node-5' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+ok: [redis-node-5]
+
+TASK [Check if this node needs rollback] ***************************************
+ok: [redis-node-5]
+
+TASK [Extract version] *********************************************************
+ok: [redis-node-5]
+
+TASK [Stop Redis] **************************************************************
+changed: [redis-node-5]
+
+TASK [Wait for stop] ***********************************************************
+ok: [redis-node-5]
+
+TASK [Clear incompatible data files] *******************************************
+changed: [redis-node-5]
+
+TASK [Install target version] **************************************************
+included: redis for redis-node-5
+
+TASK [redis : Determine if target Redis version is already active] *************
+ok: [redis-node-5]
+
+TASK [redis : Extract current version string if present] ***********************
+ok: [redis-node-5]
+
+TASK [redis : Display version comparison] **************************************
+ok: [redis-node-5] => {
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+
+TASK [redis : Stop existing Redis if running] **********************************
+ok: [redis-node-5]
+
+TASK [redis : Remove previous build directory to avoid conflicts] **************
+changed: [redis-node-5]
+
+TASK [redis : Create fresh compilation directory] ******************************
+changed: [redis-node-5]
+
+TASK [redis : Install build dependencies] **************************************
+ok: [redis-node-5]
+
+TASK [redis : Download Redis source archive] ***********************************
+ok: [redis-node-5]
+
+TASK [redis : Unpack source package] *******************************************
+changed: [redis-node-5]
+
+TASK [redis : Compile Redis source binaries] ***********************************
+changed: [redis-node-5]
+
+TASK [redis : Install Redis binaries to system path] ***************************
+changed: [redis-node-5]
+
+TASK [redis : Verify Redis installation] ***************************************
+ok: [redis-node-5]
+
+TASK [redis : Display installed version] ***************************************
+ok: [redis-node-5] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=e8bf78c50eb79dff"
+}
+
+TASK [Start Redis] *************************************************************
+changed: [redis-node-5]
+
+TASK [Wait for Redis] **********************************************************
+ok: [redis-node-5]
+
+TASK [Wait for sync] ***********************************************************
+ok: [redis-node-5]
+
+TASK [Report] ******************************************************************
+ok: [redis-node-5] => {
+    "msg": "Rolled back 10.10.0.15 to 7.0.15"
+}
+
+PLAY [Rollback replicas first] *************************************************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Host 'redis-node-6' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+ok: [redis-node-6]
+
+TASK [Check if this node needs rollback] ***************************************
+ok: [redis-node-6]
+
+TASK [Extract version] *********************************************************
+ok: [redis-node-6]
+
+TASK [Stop Redis] **************************************************************
+changed: [redis-node-6]
+
+TASK [Wait for stop] ***********************************************************
+ok: [redis-node-6]
+
+TASK [Clear incompatible data files] *******************************************
+changed: [redis-node-6]
+
+TASK [Install target version] **************************************************
+included: redis for redis-node-6
+
+TASK [redis : Determine if target Redis version is already active] *************
+ok: [redis-node-6]
+
+TASK [redis : Extract current version string if present] ***********************
+ok: [redis-node-6]
+
+TASK [redis : Display version comparison] **************************************
+ok: [redis-node-6] => {
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+
+TASK [redis : Stop existing Redis if running] **********************************
+ok: [redis-node-6]
+
+TASK [redis : Remove previous build directory to avoid conflicts] **************
+changed: [redis-node-6]
+
+TASK [redis : Create fresh compilation directory] ******************************
+changed: [redis-node-6]
+
+TASK [redis : Install build dependencies] **************************************
+ok: [redis-node-6]
+
+TASK [redis : Download Redis source archive] ***********************************
+ok: [redis-node-6]
+
+TASK [redis : Unpack source package] *******************************************
+changed: [redis-node-6]
+
+TASK [redis : Compile Redis source binaries] ***********************************
+changed: [redis-node-6]
+
+TASK [redis : Install Redis binaries to system path] ***************************
+changed: [redis-node-6]
+
+TASK [redis : Verify Redis installation] ***************************************
+ok: [redis-node-6]
+
+TASK [redis : Display installed version] ***************************************
+ok: [redis-node-6] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=d5af593e7f437846"
+}
+
+TASK [Start Redis] *************************************************************
+changed: [redis-node-6]
+
+TASK [Wait for Redis] **********************************************************
+ok: [redis-node-6]
+
+TASK [Wait for sync] ***********************************************************
+ok: [redis-node-6]
+
+TASK [Report] ******************************************************************
+ok: [redis-node-6] => {
+    "msg": "Rolled back 10.10.0.16 to 7.0.15"
+}
+
+PLAY [Rollback masters (stop and let automatic failover happen)] ***************
+
+TASK [Gathering Facts] *********************************************************
 ok: [redis-node-1]
 
-TASK [Confirm upgrade success] *************************************************
+TASK [Check if this node needs rollback] ***************************************
+ok: [redis-node-1]
+
+TASK [Extract version] *********************************************************
+ok: [redis-node-1]
+
+TASK [Stop Redis on master (cluster will auto-failover)] ***********************
+changed: [redis-node-1]
+
+TASK [Wait for Redis to stop] **************************************************
+ok: [redis-node-1]
+
+TASK [Wait for cluster to promote replica automatically] ***********************
+Pausing for 10 seconds
+(ctrl+C then 'C' = continue early, ctrl+C then 'A' = abort)
+ok: [redis-node-1]
+
+TASK [Clear incompatible data files] *******************************************
+changed: [redis-node-1]
+
+TASK [Install target version] **************************************************
+included: redis for redis-node-1
+
+TASK [redis : Determine if target Redis version is already active] *************
+ok: [redis-node-1]
+
+TASK [redis : Extract current version string if present] ***********************
+ok: [redis-node-1]
+
+TASK [redis : Display version comparison] **************************************
 ok: [redis-node-1] => {
-    "msg": "UPGRADE COMPLETE — all nodes on v7.2.6, cluster state: ok"
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+
+TASK [redis : Stop existing Redis if running] **********************************
+ok: [redis-node-1]
+
+TASK [redis : Remove previous build directory to avoid conflicts] **************
+changed: [redis-node-1]
+
+TASK [redis : Create fresh compilation directory] ******************************
+changed: [redis-node-1]
+
+TASK [redis : Install build dependencies] **************************************
+ok: [redis-node-1]
+
+TASK [redis : Download Redis source archive] ***********************************
+ok: [redis-node-1]
+
+TASK [redis : Unpack source package] *******************************************
+changed: [redis-node-1]
+
+TASK [redis : Compile Redis source binaries] ***********************************
+changed: [redis-node-1]
+
+TASK [redis : Install Redis binaries to system path] ***************************
+changed: [redis-node-1]
+
+TASK [redis : Verify Redis installation] ***************************************
+ok: [redis-node-1]
+
+TASK [redis : Display installed version] ***************************************
+ok: [redis-node-1] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=bb835dfee2f84b9c"
+}
+
+TASK [Start Redis] *************************************************************
+changed: [redis-node-1]
+
+TASK [Wait for Redis] **********************************************************
+ok: [redis-node-1]
+
+TASK [Wait for node to rejoin cluster] *****************************************
+ok: [redis-node-1]
+
+TASK [Report] ******************************************************************
+ok: [redis-node-1] => {
+    "msg": "Rolled back 10.10.0.11 to 7.0.15"
+}
+
+PLAY [Rollback masters (stop and let automatic failover happen)] ***************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Host 'redis-node-2' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+ok: [redis-node-2]
+
+TASK [Check if this node needs rollback] ***************************************
+ok: [redis-node-2]
+
+TASK [Extract version] *********************************************************
+ok: [redis-node-2]
+
+TASK [Stop Redis on master (cluster will auto-failover)] ***********************
+changed: [redis-node-2]
+
+TASK [Wait for Redis to stop] **************************************************
+ok: [redis-node-2]
+
+TASK [Wait for cluster to promote replica automatically] ***********************
+Pausing for 10 seconds
+(ctrl+C then 'C' = continue early, ctrl+C then 'A' = abort)
+ok: [redis-node-2]
+
+TASK [Clear incompatible data files] *******************************************
+changed: [redis-node-2]
+
+TASK [Install target version] **************************************************
+included: redis for redis-node-2
+
+TASK [redis : Determine if target Redis version is already active] *************
+ok: [redis-node-2]
+
+TASK [redis : Extract current version string if present] ***********************
+ok: [redis-node-2]
+
+TASK [redis : Display version comparison] **************************************
+ok: [redis-node-2] => {
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+
+TASK [redis : Stop existing Redis if running] **********************************
+ok: [redis-node-2]
+
+TASK [redis : Remove previous build directory to avoid conflicts] **************
+changed: [redis-node-2]
+
+TASK [redis : Create fresh compilation directory] ******************************
+changed: [redis-node-2]
+
+TASK [redis : Install build dependencies] **************************************
+ok: [redis-node-2]
+
+TASK [redis : Download Redis source archive] ***********************************
+ok: [redis-node-2]
+
+TASK [redis : Unpack source package] *******************************************
+changed: [redis-node-2]
+
+TASK [redis : Compile Redis source binaries] ***********************************
+changed: [redis-node-2]
+
+TASK [redis : Install Redis binaries to system path] ***************************
+changed: [redis-node-2]
+
+TASK [redis : Verify Redis installation] ***************************************
+ok: [redis-node-2]
+
+TASK [redis : Display installed version] ***************************************
+ok: [redis-node-2] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=a35e026a5d79f98a"
+}
+
+TASK [Start Redis] *************************************************************
+changed: [redis-node-2]
+
+TASK [Wait for Redis] **********************************************************
+ok: [redis-node-2]
+
+TASK [Wait for node to rejoin cluster] *****************************************
+ok: [redis-node-2]
+
+TASK [Report] ******************************************************************
+ok: [redis-node-2] => {
+    "msg": "Rolled back 10.10.0.12 to 7.0.15"
+}
+
+PLAY [Rollback masters (stop and let automatic failover happen)] ***************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Host 'redis-node-3' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+ok: [redis-node-3]
+
+TASK [Check if this node needs rollback] ***************************************
+ok: [redis-node-3]
+
+TASK [Extract version] *********************************************************
+ok: [redis-node-3]
+
+TASK [Stop Redis on master (cluster will auto-failover)] ***********************
+changed: [redis-node-3]
+
+TASK [Wait for Redis to stop] **************************************************
+ok: [redis-node-3]
+
+TASK [Wait for cluster to promote replica automatically] ***********************
+Pausing for 10 seconds
+(ctrl+C then 'C' = continue early, ctrl+C then 'A' = abort)
+ok: [redis-node-3]
+
+TASK [Clear incompatible data files] *******************************************
+changed: [redis-node-3]
+
+TASK [Install target version] **************************************************
+included: redis for redis-node-3
+
+TASK [redis : Determine if target Redis version is already active] *************
+ok: [redis-node-3]
+
+TASK [redis : Extract current version string if present] ***********************
+ok: [redis-node-3]
+
+TASK [redis : Display version comparison] **************************************
+ok: [redis-node-3] => {
+    "msg": "Current: 7.2.6 | Target: 7.0.15"
+}
+
+TASK [redis : Stop existing Redis if running] **********************************
+ok: [redis-node-3]
+
+TASK [redis : Remove previous build directory to avoid conflicts] **************
+changed: [redis-node-3]
+
+TASK [redis : Create fresh compilation directory] ******************************
+changed: [redis-node-3]
+
+TASK [redis : Install build dependencies] **************************************
+ok: [redis-node-3]
+
+TASK [redis : Download Redis source archive] ***********************************
+ok: [redis-node-3]
+
+TASK [redis : Unpack source package] *******************************************
+changed: [redis-node-3]
+
+TASK [redis : Compile Redis source binaries] ***********************************
+changed: [redis-node-3]
+
+TASK [redis : Install Redis binaries to system path] ***************************
+changed: [redis-node-3]
+
+TASK [redis : Verify Redis installation] ***************************************
+ok: [redis-node-3]
+
+TASK [redis : Display installed version] ***************************************
+ok: [redis-node-3] => {
+    "msg": "Successfully installed: Redis server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=2e1a0e64db53d356"
+}
+
+TASK [Start Redis] *************************************************************
+changed: [redis-node-3]
+
+TASK [Wait for Redis] **********************************************************
+ok: [redis-node-3]
+
+TASK [Wait for node to rejoin cluster] *****************************************
+ok: [redis-node-3]
+
+TASK [Report] ******************************************************************
+ok: [redis-node-3] => {
+    "msg": "Rolled back 10.10.0.13 to 7.0.15"
+}
+
+PLAY [Post-rollback verification] **********************************************
+
+TASK [Wait for cluster to stabilize] *******************************************
+Pausing for 10 seconds
+(ctrl+C then 'C' = continue early, ctrl+C then 'A' = abort)
+ok: [redis-node-1]
+
+TASK [Check all versions] ******************************************************
+ok: [redis-node-1]
+
+TASK [Display] *****************************************************************
+ok: [redis-node-1] => {
+    "msg": [
+        "10.10.0.11 — redis_version:7.0.15",
+        "10.10.0.12 — redis_version:7.0.15",
+        "10.10.0.13 — redis_version:7.0.15",
+        "10.10.0.14 — redis_version:7.0.15",
+        "10.10.0.15 — redis_version:7.0.15",
+        "10.10.0.16 — redis_version:7.0.15"
+    ]
+}
+
+TASK [Check cluster state] *****************************************************
+ok: [redis-node-1]
+
+TASK [Confirm rollback] ********************************************************
+ok: [redis-node-1] => {
+    "msg": "ROLLBACK COMPLETE — all nodes on v7.0.15"
 }
 
 PLAY RECAP *********************************************************************
 redis-node-1               : ok=34   changed=8    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
-redis-node-2               : ok=27   changed=8    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
-redis-node-3               : ok=27   changed=8    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
-redis-node-4               : ok=23   changed=7    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
-redis-node-5               : ok=23   changed=7    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
-redis-node-6               : ok=23   changed=7    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+redis-node-2               : ok=25   changed=8    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+redis-node-3               : ok=25   changed=8    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+redis-node-4               : ok=24   changed=8    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+redis-node-5               : ok=24   changed=8    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+redis-node-6               : ok=24   changed=8    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
 
 [*] Launching system environment prerequisites evaluation...
  [+] Found Runtime: Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2
  [+] Found Executable: ansible-playbook [core 2.20.6]
  [*] Environment Verification Cleared. Proceeding to orchestration pipeline...
 
-[*] Triggering Rolling Upgrade targeting: 7.2.6
+[*] Rolling back to version 7.0.15...
 
 
-[+] UPGRADE COMPLETE — all nodes on v7.2.6
+[+] ROLLBACK COMPLETE — all nodes on v7.0.15

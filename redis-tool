@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 """
 redis-tool - Redis Cluster Lifecycle Management CLI
-Wraps Ansible playbooks for provisioning, operations, and rolling upgrades.
 """
 import sys
 import os
 import subprocess
 import json
 import argparse
+import time
 from datetime import datetime, timezone
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ANSIBLE_DIR = os.path.join(SCRIPT_DIR, "ansible")
 
 def log_event(command, status, metadata=None):
-    """Generates structured JSON execution audit trails."""
     os.makedirs(os.path.join(SCRIPT_DIR, "logs"), exist_ok=True)
     log_payload = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -26,9 +25,7 @@ def log_event(command, status, metadata=None):
         log_file.write(json.dumps(log_payload) + "\n")
 
 def run_prerequisite_validation():
-    """Validates dependencies before executing commands."""
     print("[*] Launching system environment prerequisites evaluation...")
-
     runtime = None
     for engine in ["podman", "docker"]:
         try:
@@ -38,39 +35,31 @@ def run_prerequisite_validation():
             break
         except (subprocess.CalledProcessError, FileNotFoundError):
             continue
-
     if not runtime:
         print(" [X] Container runtime not found (Docker or Podman)")
-        print("     Install Podman: https://podman.io/docs/installation")
-        print("     Install Docker: https://docs.docker.com/engine/install/")
         sys.exit(1)
-
     try:
         ans_res = subprocess.run(["ansible-playbook", "--version"], capture_output=True, text=True, check=True)
         print(f" [+] Found Executable: {ans_res.stdout.splitlines()[0]}")
     except (subprocess.CalledProcessError, FileNotFoundError):
         print(" [X] Ansible not found")
-        print("     Install: pip install ansible")
         sys.exit(1)
-
     print(" [*] Environment Verification Cleared. Proceeding to orchestration pipeline...\n")
     return runtime
 
-def run_playbook(playbook, extra_vars=None):
-    """Execute an Ansible playbook."""
+def run_playbook(playbook, extra_vars=None, inventory=None):
+    inv = inventory or os.path.join(ANSIBLE_DIR, "inventory", "hosts.ini")
     cmd = [
         "ansible-playbook",
         os.path.join(ANSIBLE_DIR, "playbooks", playbook),
-        "-i", os.path.join(ANSIBLE_DIR, "inventory", "hosts.ini"),
+        "-i", inv,
     ]
     if extra_vars:
         for key, value in extra_vars.items():
             cmd.extend(["-e", f"{key}={value}"])
-
     env = os.environ.copy()
     env["ANSIBLE_CONFIG"] = os.path.join(ANSIBLE_DIR, "ansible.cfg")
     env["ANSIBLE_ROLES_PATH"] = os.path.join(ANSIBLE_DIR, "roles")
-
     return subprocess.run(cmd, env=env, cwd=ANSIBLE_DIR)
 
 def handle_provision(args):
@@ -130,6 +119,106 @@ def handle_verify(args):
         print("Use: ./redis-tool verify --full")
         sys.exit(1)
 
+def handle_scale(args):
+    if args.add_nodes:
+        num = args.add_nodes
+        print(f"[*] Scaling out — adding {num} nodes to cluster...\n")
+
+        new_master_ip = "10.10.0.17"
+        new_replica_ip = "10.10.0.18"
+
+        # Get current Redis version
+        ver_check = subprocess.run(
+            ["docker", "exec", "redis-node-1", "redis-cli", "INFO", "server"],
+            capture_output=True, text=True
+        )
+        current_version = "7.0.15"
+        for line in ver_check.stdout.split('\n'):
+            if line.startswith('redis_version:'):
+                current_version = line.strip().split(':')[1].strip('\r')
+        print(f"[*] Detected cluster version: {current_version}")
+
+        # Start new containers
+        compose_file = os.path.join(SCRIPT_DIR, "infra", "compose.yml")
+        print("[*] Starting new containers...")
+        subprocess.run(["docker-compose", "up", "-d", "redis-node-7", "redis-node-8"], cwd=os.path.join(SCRIPT_DIR, "infra"))
+        time.sleep(5)
+
+        # Create temporary inventory for new nodes
+        temp_inventory = os.path.join(ANSIBLE_DIR, "inventory", "scale_hosts.ini")
+        with open(temp_inventory, 'w') as f:
+            f.write("[scale_nodes]\n")
+            f.write(f"redis-node-7 ansible_host={new_master_ip}\n")
+            f.write(f"redis-node-8 ansible_host={new_replica_ip}\n")
+            f.write("\n[redis-node-1]\n")
+            f.write("redis-node-1 ansible_host=10.10.0.11\n")
+            f.write("\n[all:vars]\n")
+            f.write("ansible_user=root\n")
+            f.write("ansible_ssh_private_key_file=/home/Ansible/id_rsa\n")
+            f.write("ansible_python_interpreter=/usr/bin/python3\n")
+
+        result = run_playbook("scale_out.yml", {
+            "redis_version": current_version,
+            "new_master_ip": new_master_ip,
+            "new_replica_ip": new_replica_ip,
+        }, inventory=temp_inventory)
+
+        if result.returncode == 0:
+            log_event(f"scale --add-nodes {num}", "SUCCESS")
+            print(f"\n[+] Scale out complete — added {num} nodes and rebalanced slots")
+        else:
+            log_event(f"scale --add-nodes {num}", "FAILED")
+            print("[X] Scale out failed.")
+            sys.exit(result.returncode)
+
+    elif args.remove_node:
+        node_id = args.remove_node
+        print(f"[*] Scaling in — removing node {node_id}...\n")
+
+        target_cmd = subprocess.run(
+            ["docker", "exec", "redis-node-1", "redis-cli", "cluster", "nodes"],
+            capture_output=True, text=True
+        )
+        target_master_id = ""
+        for line in target_cmd.stdout.split('\n'):
+            if "master" in line and node_id not in line and line.strip():
+                target_master_id = line.split()[0]
+                break
+
+        if not target_master_id:
+            print("[X] Could not find a target master for slot migration")
+            sys.exit(1)
+
+        result = run_playbook("scale_in.yml", {
+            "remove_node_id": node_id,
+            "target_master_id": target_master_id
+        })
+
+        if result.returncode == 0:
+            log_event(f"scale --remove-node {node_id}", "SUCCESS")
+            print(f"\n[+] Node {node_id} removed from cluster")
+        else:
+            log_event(f"scale --remove-node {node_id}", "FAILED")
+            print("[X] Scale in failed.")
+            sys.exit(result.returncode)
+    else:
+        print("Use: ./redis-tool scale --add-nodes 2  OR  ./redis-tool scale --remove-node <node-id>")
+        sys.exit(1)
+
+def handle_rollback(args):
+    print(f"[*] Rolling back to version {args.target_version}...\n")
+    result = run_playbook("rollback.yml", {
+        "redis_version": args.target_version,
+        "target_version": args.target_version
+    })
+    if result.returncode == 0:
+        log_event(f"rollback {args.target_version}", "SUCCESS")
+        print(f"\n[+] ROLLBACK COMPLETE — all nodes on v{args.target_version}")
+    else:
+        log_event(f"rollback {args.target_version}", "FAILED")
+        print("[X] Rollback failed. Check logs.")
+        sys.exit(result.returncode)
+
 def main():
     run_prerequisite_validation()
 
@@ -152,6 +241,13 @@ def main():
     ver_p.add_argument("--full", action="store_true")
     ver_p.add_argument("--keys", type=int, default=1000)
 
+    scale_p = subparsers.add_parser("scale", help="Scale cluster in/out")
+    scale_p.add_argument("--add-nodes", type=int, help="Add master+replica pair")
+    scale_p.add_argument("--remove-node", type=str, help="Node ID to remove")
+
+    rb_p = subparsers.add_parser("rollback", help="Rollback to previous version")
+    rb_p.add_argument("--target-version", required=True, help="Version to rollback to")
+
     args = parser.parse_args()
 
     if args.command == "provision":
@@ -164,6 +260,10 @@ def main():
         handle_upgrade(args)
     elif args.command == "verify":
         handle_verify(args)
+    elif args.command == "scale":
+        handle_scale(args)
+    elif args.command == "rollback":
+        handle_rollback(args)
     else:
         parser.print_help()
 
