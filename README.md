@@ -208,4 +208,40 @@ docker exec redis-node-1 redis-cli cluster info
 docker exec redis-node-1 redis-cli cluster nodes
 
 
+-----------------
+
+---
+
+## Stretch Goals
+
+### Scale Out — Adding Nodes
+
+./redis-tool scale --add-nodes 2
+This spins up two new containers, installs Redis on them (matching the cluster's current version), joins one as a new master and the other as its replica, then rebalances the hash slots so every master gets a fair share of the data.
+
+Scale In — Removing Nodes
+
+# First, grab the node ID
+docker exec redis-node-1 redis-cli cluster nodes | grep 10.10.0.17
+
+# Then remove it
+./redis-tool scale --remove-node <node-id>
+It moves all the data slots off that node to another master, removes its replica, then removes the node itself. The cluster keeps running the whole time.
+
+Rollback
+./redis-tool rollback --target-version 7.0.15
+Takes every node back to the older version. It handles replicas first (safe to touch), then stops each master and lets the cluster auto-promote a replica before downgrading. Data files get cleared because the newer format isn't backwards compatible.
+
+Idempotency
+Already built in. Run provision twice — it skips if the version matches. Run upgrade when you're already on the target version — nothing happens. Run rollback when replicas are already on the old version — they get skipped.
+
+Structured Logging
+Every command writes a JSON entry to logs/operation_log.json:
+
+
+{"timestamp": "2026-05-25T10:15:00+00:00", "command": "scale --add-nodes 2", "status": "SUCCESS"}
+{"timestamp": "2026-05-25T10:18:00+00:00", "command": "scale --remove-node abc123", "status": "SUCCESS"}
+{"timestamp": "2026-05-25T10:25:00+00:00", "command": "rollback 7.0.15", "status": "SUCCESS"}
+
+
 
